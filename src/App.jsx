@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react'
-import { loadState, saveJobs, saveSelectedJob, saveToStorage, createJob } from './lib/state'
+import React, { useState, useEffect, useCallback } from 'react'
+import { DEFAULT_PROFILE, createJob, PIPELINE_COLUMNS } from './lib/state'
 import { useLanguage } from './lib/useLanguage'
+import { isSupabaseEnabled } from './lib/supabase'
+import { onAuthChange, getSession, signOut } from './lib/sync'
+import { loadJobs, saveJob, deleteJob, saveAllJobs, loadProfile, saveProfile, migrateLocalStorageToSupabase } from './lib/sync'
 import Scanner from './components/Scanner'
 import Qualify from './components/Qualify'
 import Pipeline from './components/Pipeline'
@@ -12,63 +15,127 @@ import Timeline from './components/Timeline'
 import ATSScore from './components/ATSScore'
 import CVUpload from './components/CVUpload'
 import RefDocs from './components/RefDocs'
+import AuthModal from './components/AuthModal'
 
 export default function App() {
   const [page, setPage] = useState('scanner')
-  const [appState, setAppState] = useState(() => loadState())
   const { lang, setLang, t } = useLanguage()
-  const [cvText, setCvText] = React.useState(() => localStorage.getItem('ph_cvtext') || null)
-  const [refCV, setRefCV] = React.useState(() => localStorage.getItem('ph_refcv') || null)
-  const [refCoverLetter, setRefCoverLetter] = React.useState(() => localStorage.getItem('ph_refcl') || null)
 
-  useEffect(() => { saveJobs(appState.jobs) }, [appState.jobs])
+  // Auth
+  const [session, setSession] = useState(null)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [syncing, setSyncing] = useState(false)
 
-  const selectedJob = appState.jobs.find(j => j.id === appState.selectedJobId) || null
+  // Core state
+  const [jobs, setJobs] = useState([])
+  const [profile, setProfile] = useState(DEFAULT_PROFILE)
+  const [selectedJobId, setSelectedJobId] = useState(() => localStorage.getItem('ph_selectedjob') || null)
+  const [cvText, setCvText] = useState(() => localStorage.getItem('ph_cvtext') || null)
+  const [refCV, setRefCV] = useState(() => localStorage.getItem('ph_refcv') || null)
+  const [refCoverLetter, setRefCoverLetter] = useState(() => localStorage.getItem('ph_refcl') || null)
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('ph_apikey') || '')
+  const [loaded, setLoaded] = useState(false)
 
-  function navigate(p) { setPage(p) }
+  const userId = session?.user?.id || null
 
-  function updateJob(id, patch) {
-    setAppState(s => ({
-      ...s,
-      jobs: s.jobs.map(j => j.id === id
-        ? { ...j, ...patch, lastAction: new Date().toISOString().split('T')[0] }
-        : j
-      )
-    }))
+  // Load data on mount / auth change
+  useEffect(() => {
+    async function load(uid) {
+      setSyncing(true)
+      try {
+        const [loadedJobs, loadedProfile] = await Promise.all([
+          loadJobs(uid),
+          loadProfile(uid, DEFAULT_PROFILE),
+        ])
+        setJobs(loadedJobs)
+        setProfile(loadedProfile)
+        // Migrate localStorage on first Supabase login
+        if (uid && localStorage.getItem('ph_migrated') !== 'true') {
+          await migrateLocalStorageToSupabase(uid)
+        }
+      } catch(e) {
+        console.error('Load error:', e)
+      } finally {
+        setSyncing(false)
+        setLoaded(true)
+      }
+    }
+
+    // Initial session check
+    getSession().then(s => {
+      setSession(s)
+      load(s?.user?.id || null)
+    })
+
+    // Listen for auth changes
+    const unsub = onAuthChange(s => {
+      setSession(s)
+      if (s) load(s.user.id)
+    })
+    return unsub
+  }, [])
+
+  const selectedJob = jobs.find(j => j.id === selectedJobId) || null
+
+  // ── Job operations ──────────────────────────────────────────────────────────
+
+  async function updateJob(id, patch) {
+    const updated = jobs.map(j =>
+      j.id === id ? { ...j, ...patch, lastAction: new Date().toISOString().split('T')[0] } : j
+    )
+    setJobs(updated)
+    const updatedJob = updated.find(j => j.id === id)
+    await saveJob(updatedJob, userId)
   }
 
-  function handleJobScanned(scanData) {
-    const existing = appState.jobs.find(j =>
-      j.title === scanData.title && j.company === scanData.company
-    )
+  async function handleJobScanned(scanData) {
+    const existing = jobs.find(j => j.title === scanData.title && j.company === scanData.company)
     if (existing) {
-      setAppState(s => ({ ...s, selectedJobId: existing.id }))
-      saveSelectedJob(existing.id)
+      setSelectedJobId(existing.id)
+      localStorage.setItem('ph_selectedjob', existing.id)
     } else {
       const newJob = createJob(scanData)
-      setAppState(s => ({ ...s, jobs: [newJob, ...s.jobs], selectedJobId: newJob.id }))
-      saveSelectedJob(newJob.id)
+      const newJobs = [newJob, ...jobs]
+      setJobs(newJobs)
+      setSelectedJobId(newJob.id)
+      localStorage.setItem('ph_selectedjob', newJob.id)
+      await saveJob(newJob, userId)
     }
     navigate('qualify')
   }
 
   function handleSelectJob(id) {
-    setAppState(s => ({ ...s, selectedJobId: id }))
-    saveSelectedJob(id)
+    setSelectedJobId(id)
+    localStorage.setItem('ph_selectedjob', id)
   }
 
-  function handleDeleteJob(id) {
-    setAppState(s => {
-      const jobs = s.jobs.filter(j => j.id !== id)
-      const selectedJobId = s.selectedJobId === id ? (jobs[0]?.id || null) : s.selectedJobId
-      saveSelectedJob(selectedJobId)
-      return { ...s, jobs, selectedJobId }
-    })
+  async function handleDeleteJob(id) {
+    const newJobs = jobs.filter(j => j.id !== id)
+    setJobs(newJobs)
+    const newSelected = selectedJobId === id ? (newJobs[0]?.id || null) : selectedJobId
+    setSelectedJobId(newSelected)
+    localStorage.setItem('ph_selectedjob', newSelected || '')
+    await deleteJob(id, userId)
   }
 
-  function handleProfileSave(profile) {
-    setAppState(s => ({ ...s, profile }))
-    saveToStorage('ph_profile', profile)
+  // ── Profile ─────────────────────────────────────────────────────────────────
+
+  async function handleProfileSave(p) {
+    setProfile(p)
+    await saveProfile(p, userId)
+  }
+
+  // ── API key / CV / Ref docs (localStorage only) ──────────────────────────────
+
+  function handleApiKeySave(key) {
+    setApiKey(key)
+    localStorage.setItem('ph_apikey', key)
+  }
+
+  function handleCVUpdate(text) {
+    setCvText(text)
+    if (text) localStorage.setItem('ph_cvtext', text)
+    else localStorage.removeItem('ph_cvtext')
   }
 
   function handleRefCVUpdate(text) {
@@ -83,22 +150,11 @@ export default function App() {
     else localStorage.removeItem('ph_refcl')
   }
 
-  function handleCVUpdate(text) {
-    setCvText(text)
-    if (text) localStorage.setItem('ph_cvtext', text)
-    else localStorage.removeItem('ph_cvtext')
-  }
+  function navigate(p) { setPage(p) }
 
-  function handleApiKeySave(key) {
-    setAppState(s => ({ ...s, apiKey: key }))
-    localStorage.setItem('ph_apikey', key)
-  }
+  // ── Nav ─────────────────────────────────────────────────────────────────────
 
-  function handlePipelineUpdate(jobs) {
-    setAppState(s => ({ ...s, jobs }))
-  }
-
-  const activeCount = appState.jobs.filter(p => !['closed', 'abandoned'].includes(p.status)).length
+  const activeCount = jobs.filter(j => !['closed', 'abandoned'].includes(j.status)).length
 
   const NAV = [
     { id: 'scanner',  label: t('navScanner'),  icon: 'ti-search',        section: 'workflow' },
@@ -106,60 +162,94 @@ export default function App() {
     { id: 'pipeline', label: t('navPipeline'), icon: 'ti-layout-kanban', section: 'workflow' },
     { id: 'adapter',  label: t('navAdapter'),  icon: 'ti-file-text',     section: 'workflow' },
     { id: 'outreach', label: t('navOutreach'), icon: 'ti-message',       section: 'workflow' },
-    { id: 'timeline', label: t('navTimeline'), icon: 'ti-chart-bar',     section: 'workflow' },
     { id: 'ats',      label: t('navATS'),      icon: 'ti-target',        section: 'workflow' },
-    { id: 'cv',       label: t('navCV'),        icon: 'ti-id',            section: 'settings' },
-    { id: 'refdocs',  label: t('navRefDocs'),    icon: 'ti-files',         section: 'settings' },
+    { id: 'timeline', label: t('navTimeline'), icon: 'ti-chart-bar',     section: 'workflow' },
+    { id: 'cv',       label: t('navCV'),       icon: 'ti-id',            section: 'settings' },
+    { id: 'refdocs',  label: t('navRefDocs'),  icon: 'ti-files',         section: 'settings' },
     { id: 'profile',  label: t('navProfile'),  icon: 'ti-user',          section: 'settings' },
     { id: 'apikey',   label: t('navApiKey'),   icon: 'ti-key',           section: 'settings' },
   ]
 
-  const workflow = NAV.filter(n => n.section === 'workflow')
-  const settings = NAV.filter(n => n.section === 'settings')
+  const sharedProps = {
+    t, lang, selectedJob, jobs, profile, cvText, refCV, refCoverLetter,
+    onUpdateJob: updateJob, onSelectJob: handleSelectJob, onNavigate: navigate
+  }
 
-  const sharedProps = { t, lang, selectedJob, jobs: appState.jobs, profile: appState.profile, cvText, refCV, refCoverLetter, onUpdateJob: updateJob, onSelectJob: handleSelectJob, onNavigate: navigate }
+  if (!loaded) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="spinner mx-auto mb-3" style={{ width: 24, height: 24, borderWidth: 3 }} />
+          <div className="text-[13px] text-gray-400">{lang === 'fr' ? 'Chargement…' : 'Loading…'}</div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
+      {showAuthModal && <AuthModal lang={lang} onClose={() => setShowAuthModal(false)} />}
+
+      {/* Sidebar */}
       <aside className="w-52 flex-shrink-0 bg-white border-r border-gray-100 flex flex-col py-5">
         {/* Logo + lang toggle */}
-        <div className="px-5 pb-4 border-b border-gray-100 mb-2">
-          <div className="flex items-center justify-between">
-            <div className="text-[15px] font-medium tracking-tight">🎯 {t('appName')}</div>
-            {/* FR/EN toggle */}
+        <div className="px-4 pb-4 border-b border-gray-100 mb-2">
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-[15px] font-medium tracking-tight">🎯 Job Hunter</div>
             <div className="flex rounded-md border border-gray-200 overflow-hidden text-[11px]">
               {['fr', 'en'].map(l => (
-                <button
-                  key={l}
-                  onClick={() => setLang(l)}
-                  className={`px-2 py-1 transition-colors ${
-                    lang === l ? 'bg-[#534AB7] text-white' : 'bg-white text-gray-400 hover:text-gray-600'
-                  }`}
-                >
+                <button key={l} onClick={() => setLang(l)}
+                  className={`px-2 py-1 transition-colors ${lang === l ? 'bg-[#534AB7] text-white' : 'bg-white text-gray-400 hover:text-gray-600'}`}>
                   {l.toUpperCase()}
                 </button>
               ))}
             </div>
           </div>
-          <div className="text-[11px] text-gray-400 mt-0.5">{t('appSubtitle')}</div>
+          <div className="text-[11px] text-gray-400">{t('appSubtitle')}</div>
+
+          {/* Sync status */}
+          {isSupabaseEnabled() && (
+            <div className="mt-2">
+              {session ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    <span className="text-[10px] text-green-700 truncate max-w-[100px]">{session.user.email}</span>
+                  </div>
+                  <button onClick={signOut} className="text-[10px] text-gray-400 hover:text-gray-600">
+                    {lang === 'fr' ? 'Déco.' : 'Sign out'}
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => setShowAuthModal(true)}
+                  className="w-full flex items-center gap-1.5 text-[11px] text-[#534AB7] hover:text-[#3C3489] font-medium">
+                  <i className="ti ti-cloud-upload text-sm" />
+                  {lang === 'fr' ? 'Sync multi-appareils' : 'Enable sync'}
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className="px-4 pt-3 pb-1">
+        {/* Workflow nav */}
+        <div className="px-4 pt-2 pb-1">
           <div className="text-[10px] font-medium uppercase tracking-widest text-gray-300 mb-1">{t('sectionWorkflow')}</div>
         </div>
-        {workflow.map(item => (
+        {NAV.filter(n => n.section === 'workflow').map(item => (
           <NavItem key={item.id} item={item} active={page === item.id} onClick={() => navigate(item.id)}
             badge={item.id === 'pipeline' && activeCount > 0 ? activeCount : null} />
         ))}
 
+        {/* Settings nav */}
         <div className="px-4 pt-4 pb-1">
           <div className="text-[10px] font-medium uppercase tracking-widest text-gray-300 mb-1">{t('sectionSettings')}</div>
         </div>
-        {settings.map(item => (
+        {NAV.filter(n => n.section === 'settings').map(item => (
           <NavItem key={item.id} item={item} active={page === item.id} onClick={() => navigate(item.id)}
-            badge={item.id === 'apikey' && !appState.apiKey && !import.meta.env.PROD ? '!' : null} />
+            badge={item.id === 'apikey' && !apiKey && !import.meta.env.PROD ? '!' : null} />
         ))}
 
+        {/* Active job chip */}
         {selectedJob && (
           <div className="mt-auto mx-3 mb-2 p-2.5 bg-[#EEEDFE] rounded-lg cursor-pointer" onClick={() => navigate('qualify')}>
             <div className="text-[10px] text-[#7F77DD] font-medium uppercase tracking-wide mb-0.5">{t('activeJob')}</div>
@@ -175,19 +265,26 @@ export default function App() {
         )}
       </aside>
 
+      {/* Main */}
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto px-6 py-6">
+          {syncing && (
+            <div className="flex items-center gap-2 text-[11px] text-gray-400 mb-4">
+              <span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} />
+              {lang === 'fr' ? 'Synchronisation…' : 'Syncing…'}
+            </div>
+          )}
           {page === 'scanner'  && <Scanner {...sharedProps} onJobScanned={handleJobScanned} />}
           {page === 'qualify'  && <Qualify {...sharedProps} />}
-          {page === 'pipeline' && <Pipeline {...sharedProps} onDeleteJob={handleDeleteJob} selectedJobId={appState.selectedJobId} />}
+          {page === 'pipeline' && <Pipeline {...sharedProps} selectedJobId={selectedJobId} onDeleteJob={handleDeleteJob} />}
           {page === 'adapter'  && <Adapter {...sharedProps} />}
           {page === 'outreach' && <Outreach {...sharedProps} />}
-          {page === 'timeline' && <Timeline t={t} lang={lang} jobs={appState.jobs} />}
           {page === 'ats'      && <ATSScore {...sharedProps} />}
+          {page === 'timeline' && <Timeline t={t} lang={lang} jobs={jobs} />}
           {page === 'cv'       && <CVUpload t={t} lang={lang} cvText={cvText} onCVUpdate={handleCVUpdate} />}
           {page === 'refdocs'  && <RefDocs lang={lang} refCV={refCV} refCoverLetter={refCoverLetter} onRefCVUpdate={handleRefCVUpdate} onRefCLUpdate={handleRefCLUpdate} />}
-          {page === 'profile'  && <ProfilePage t={t} profile={appState.profile} onSave={handleProfileSave} />}
-          {page === 'apikey'   && <ApiKeyPage t={t} apiKey={appState.apiKey} onSave={handleApiKeySave} />}
+          {page === 'profile'  && <ProfilePage t={t} profile={profile} onSave={handleProfileSave} />}
+          {page === 'apikey'   && <ApiKeyPage t={t} apiKey={apiKey} onSave={handleApiKeySave} />}
         </div>
       </main>
     </div>
