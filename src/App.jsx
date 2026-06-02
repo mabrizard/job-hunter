@@ -8,6 +8,7 @@ import Adapter from './components/Adapter'
 import Outreach from './components/Outreach'
 import ProfilePage from './components/ProfilePage'
 import ApiKeyPage from './components/ApiKeyPage'
+import Timeline from './components/Timeline'
 
 export default function App() {
   const [page, setPage] = useState('scanner')
@@ -81,6 +82,7 @@ export default function App() {
     { id: 'pipeline', label: t('navPipeline'), icon: 'ti-layout-kanban', section: 'workflow' },
     { id: 'adapter',  label: t('navAdapter'),  icon: 'ti-file-text',     section: 'workflow' },
     { id: 'outreach', label: t('navOutreach'), icon: 'ti-message',       section: 'workflow' },
+    { id: 'timeline', label: t('navTimeline'), icon: 'ti-chart-bar',     section: 'workflow' },
     { id: 'profile',  label: t('navProfile'),  icon: 'ti-user',          section: 'settings' },
     { id: 'apikey',   label: t('navApiKey'),   icon: 'ti-key',           section: 'settings' },
   ]
@@ -153,6 +155,7 @@ export default function App() {
           {page === 'pipeline' && <Pipeline {...sharedProps} onDeleteJob={handleDeleteJob} selectedJobId={appState.selectedJobId} />}
           {page === 'adapter'  && <Adapter {...sharedProps} />}
           {page === 'outreach' && <Outreach {...sharedProps} />}
+          {page === 'timeline' && <Timeline t={t} lang={lang} jobs={appState.jobs} />}
           {page === 'profile'  && <ProfilePage t={t} profile={appState.profile} onSave={handleProfileSave} />}
           {page === 'apikey'   && <ApiKeyPage t={t} apiKey={appState.apiKey} onSave={handleApiKeySave} />}
         </div>

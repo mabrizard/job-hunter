@@ -128,6 +128,8 @@ export const translations = {
   profileSaveBtn: { fr: 'Sauvegarder',              en: 'Save profile' },
   profileSaved:   { fr: '✓ Sauvegardé',             en: '✓ Saved' },
 
+  navTimeline:    { fr: 'Timeline',                en: 'Timeline' },
+
   // API Key
   apiKeyTitle:    { fr: 'Clé API',                  en: 'API Key' },
   apiKeySubtitle: { fr: 'Configurez votre clé API Anthropic', en: 'Configure your Anthropic API key to enable all AI modules' },
