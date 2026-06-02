@@ -51,6 +51,9 @@ export function createJob(scanData) {
     postedDate: scanData.postedDate,
     sourceUrl: scanData.sourceUrl || scanData._url || '',
     _rawText: scanData._rawText || '',
+    // Detected contacts
+    hiringManager: scanData.hiringManager || null,
+    hrContact: scanData.hrContact || null,
     // Pre-qualify
     score: null,
     recommendation: null,
@@ -81,4 +84,5 @@ export const PIPELINE_COLUMNS = [
   { id: 'inprocess',  label: 'In Process', color: '#BA7517' },
   { id: 'offer',      label: 'Offer',      color: '#639922' },
   { id: 'closed',     label: 'Closed',     color: '#888780' },
+  { id: 'abandoned',   label: 'Abandoned',  color: '#C4C2BA' },
 ]

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Card, Button, Input, Alert, PageHeader } from './UI'
 
-export default function ApiKeyPage({ apiKey, onSave }) {
+export default function ApiKeyPage({ t, apiKey, onSave }) {
   const [key, setKey] = useState(apiKey)
   const [saved, setSaved] = useState(false)
 
@@ -15,13 +15,13 @@ export default function ApiKeyPage({ apiKey, onSave }) {
 
   return (
     <div>
-      <PageHeader title="API Key" subtitle="Configure your Anthropic API key to enable all AI modules" />
+      <PageHeader title={t('apiKeyTitle')} subtitle={t('apiKeySubtitle')} />
 
       {isProd ? (
         <Alert variant="success" className="mb-5">
           <div>
             <div className="font-medium mb-0.5">Production mode — server-side key</div>
-            <div>The API key is stored in Vercel environment variables and never sent to the client. No configuration needed here.</div>
+            <div>The API key is stored in Vercel environment variables and never sent to the client.</div>
           </div>
         </Alert>
       ) : (
@@ -29,10 +29,7 @@ export default function ApiKeyPage({ apiKey, onSave }) {
           <Alert variant="warning" className="mb-5">
             <div>
               <div className="font-medium mb-0.5">Development mode — client-side key</div>
-              <div>
-                In dev, the key is stored in localStorage and sent directly to api.anthropic.com from your browser.
-                In production on Vercel, set <code className="bg-amber-100 px-1 rounded">ANTHROPIC_API_KEY</code> as an environment variable instead.
-              </div>
+              <div>In dev, stored in localStorage. In production on Vercel, set <code className="bg-amber-100 px-1 rounded">ANTHROPIC_API_KEY</code> as an environment variable.</div>
             </div>
           </Alert>
 
@@ -52,22 +49,16 @@ export default function ApiKeyPage({ apiKey, onSave }) {
                 </a>
               </div>
             </div>
-
             <div className="flex items-center gap-3">
               <Button variant="primary" onClick={save}>
                 <i className="ti ti-check" />Save key
               </Button>
               {saved && <span className="text-[12px] text-green-700 font-medium">✓ Saved</span>}
             </div>
-
             {apiKey ? (
-              <Alert variant="success" className="mt-4">
-                API key configured — all 5 AI modules are active.
-              </Alert>
+              <Alert variant="success" className="mt-4">API key configured — all 5 AI modules are active.</Alert>
             ) : (
-              <Alert variant="warning" className="mt-4">
-                No API key — AI features disabled. Add your key above.
-              </Alert>
+              <Alert variant="warning" className="mt-4">No API key — AI features disabled. Add your key above.</Alert>
             )}
           </Card>
         </>

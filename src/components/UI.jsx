@@ -154,3 +154,62 @@ export function OutputBox({ id, children, editable = false }) {
     </div>
   )
 }
+
+// Job switcher — compact chips, used across Qualify / Adapter / Outreach
+export function JobSwitcher({ jobs, selectedId, onSelect }) {
+  if (!jobs || jobs.length <= 1) return null
+  return (
+    <div className="flex flex-wrap gap-1.5 mb-4">
+      {jobs.map(j => {
+        const active = j.id === selectedId
+        const recColor = j.recommendation === 'GO' ? 'text-green-700' : j.recommendation === 'NO-GO' ? 'text-red-600' : 'text-amber-700'
+        return (
+          <button
+            key={j.id}
+            onClick={() => onSelect(j.id)}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] border transition-all ${
+              active
+                ? 'bg-[#EEEDFE] border-[#534AB7] text-[#3C3489] font-medium'
+                : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700'
+            }`}
+          >
+            <span className="font-medium truncate max-w-[120px]">{j.company}</span>
+            <span className="text-gray-400 truncate max-w-[100px] hidden sm:inline">{j.title.split(' ').slice(0, 3).join(' ')}…</span>
+            {j.score != null && (
+              <span className={`text-[10px] font-medium ${active ? recColor : 'text-gray-400'}`}>{j.score}</span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// FX Rate display chip
+export function FXChip({ salaryFloor, currency, cadAmount, live, loading, t }) {
+  if (!cadAmount) return null
+  return (
+    <div className="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5 text-[12px]">
+      <span className="text-gray-500">{currency} {parseInt(salaryFloor).toLocaleString()}</span>
+      <span className="text-gray-300">→</span>
+      <span className="font-medium text-green-700">CAD {cadAmount.toLocaleString()}</span>
+      <span className={`text-[10px] px-1 py-0.5 rounded ${live ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+        {loading ? '…' : live ? (t ? t('liveRate') : 'live') : (t ? t('estRate') : 'est.')}
+      </span>
+    </div>
+  )
+}
+
+// Contact chip — hiring manager or HR
+export function ContactChip({ label, value, onNavigate, arrowLabel }) {
+  if (!value) return null
+  return (
+    <div className="inline-flex items-center gap-1.5 bg-[#E6F1FB] border border-blue-200 rounded-lg px-2.5 py-1.5 text-[12px]">
+      <span className="text-blue-400 text-[11px] font-medium">{label}</span>
+      <span className="text-blue-800 font-medium">{value}</span>
+      {onNavigate && (
+        <button onClick={onNavigate} className="text-blue-500 hover:text-blue-700 text-[11px] underline ml-1">{arrowLabel || 'outreach →'}</button>
+      )}
+    </div>
+  )
+}

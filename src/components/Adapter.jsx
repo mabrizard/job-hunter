@@ -1,77 +1,48 @@
 import React, { useState } from 'react'
 import { callClaude } from '../lib/api'
-import { Card, Button, Alert, Tag, PageHeader, Select, Spinner } from './UI'
+import { Card, Button, Alert, Tag, PageHeader, Select, Spinner, JobSwitcher } from './UI'
 
 function buildCLSystem(profile, tone) {
   return `You are an expert cover letter writer for senior pre-sales leaders. Write in a ${tone} style.
-
 CANDIDATE (RAG context):
-Name: ${profile.name}
-Strengths: ${profile.strengths}
-CV summary: ${profile.cvSummary}
-
-RULES:
-- NO generic phrases ("I am excited to apply", "I believe I would be a great fit")
-- 3 paragraphs: (1) hook — why this role/company specifically, (2) evidence — 3 differentiators mapped to their stated needs, (3) close — availability, bilingual asset if relevant, clear CTA
-- Max 250 words
-- Write in the language of the job posting (detect French vs English automatically)
-- Sound like a peer writing to a peer, not a candidate to a gatekeeper`
+Name: ${profile.name} | Strengths: ${profile.strengths} | CV summary: ${profile.cvSummary}
+RULES: NO generic phrases. 3 paragraphs: hook, evidence (3 differentiators), close. Max 250 words. Match job language (FR/EN). Peer tone.`
 }
 
 function buildCVSystem(profile) {
-  return `You are an expert CV advisor for senior pre-sales roles in enterprise SaaS.
-
-CANDIDATE (RAG context):
-Strengths: ${profile.strengths}
-CV summary: ${profile.cvSummary}
-
-Provide 6–8 specific, actionable CV adaptation tips.
-Format: numbered list. Each tip: WHAT to change/add/emphasize → WHY it matters for this specific role.
-Be concrete — reference actual job requirements. No generic advice.`
+  return `You are an expert CV advisor for senior pre-sales roles.
+CANDIDATE (RAG context): Strengths: ${profile.strengths} | CV: ${profile.cvSummary}
+Provide 6–8 specific actionable CV tips. Format: numbered list. WHAT → WHY. Reference actual requirements. No generic advice.`
 }
 
-const TONES = [
-  { value: 'executive, confident, direct — short sentences, no fluff', label: 'Executive — confident & direct' },
-  { value: 'collaborative, human, warm — peer-to-peer tone', label: 'Collaborative — human & warm' },
-  { value: 'technical, precise, results-focused — metrics and specifics', label: 'Technical — precise & results-focused' },
-]
-
-export default function Adapter({ selectedJob, jobs, profile, onUpdateJob, onSelectJob, onNavigate }) {
+export default function Adapter({ t, selectedJob, jobs, profile, onUpdateJob, onSelectJob, onNavigate }) {
   const [tab, setTab] = useState('cl')
-  const [tone, setTone] = useState(TONES[0].value)
+  const [tone, setTone] = useState('executive, confident, direct')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
 
+  const TONES = [
+    { value: 'executive, confident, direct — short sentences, no fluff', label: t('adapterTone1') },
+    { value: 'collaborative, human, warm — peer-to-peer tone', label: t('adapterTone2') },
+    { value: 'technical, precise, results-focused — metrics and specifics', label: t('adapterTone3') },
+  ]
+
   async function generate() {
     if (!selectedJob) return
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
     try {
       if (tab === 'cl') {
-        const sys = buildCLSystem(profile, tone)
-        const userMsg = `Write a cover letter for:
-Role: ${selectedJob.title} at ${selectedJob.company} (${selectedJob.location})
-Responsibilities: ${selectedJob.keyResponsibilities}
-Required: ${(selectedJob.requiredStack || []).join(', ')}
-Compensation: ${selectedJob.compensation || 'Not specified'}`
-        const text = await callClaude(sys, userMsg, 1000)
+        const text = await callClaude(buildCLSystem(profile, tone),
+          `Write a cover letter for: ${selectedJob.title} at ${selectedJob.company} (${selectedJob.location})\nResponsibilities: ${selectedJob.keyResponsibilities}\nRequired: ${(selectedJob.requiredStack||[]).join(', ')}`, 1000)
         onUpdateJob(selectedJob.id, { coverLetter: text, coverLetterTone: tone, coverLetterDate: new Date().toISOString() })
       } else {
-        const sys = buildCVSystem(profile)
-        const userMsg = `Provide CV adaptation tips for:
-Role: ${selectedJob.title} at ${selectedJob.company} (${selectedJob.location})
-Role type: ${selectedJob.roleType} | Seniority: ${selectedJob.seniority}
-Requirements: ${(selectedJob.requiredStack || []).join(', ')}
-Responsibilities: ${selectedJob.keyResponsibilities}`
-        const text = await callClaude(sys, userMsg, 1000)
+        const text = await callClaude(buildCVSystem(profile),
+          `CV tips for: ${selectedJob.title} at ${selectedJob.company}\nRole type: ${selectedJob.roleType} | Seniority: ${selectedJob.seniority}\nRequirements: ${(selectedJob.requiredStack||[]).join(', ')}\nResponsibilities: ${selectedJob.keyResponsibilities}`, 1000)
         onUpdateJob(selectedJob.id, { cvTips: text, cvTipsDate: new Date().toISOString() })
       }
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
-    }
+    } catch(e) { setError(e.message) }
+    finally { setLoading(false) }
   }
 
   function copy() {
@@ -85,42 +56,33 @@ Responsibilities: ${selectedJob.keyResponsibilities}`
 
   return (
     <div>
-      <PageHeader title="Document Adapter" subtitle="Cover letters and CV tips — saved per job posting" />
-
+      <PageHeader title={t('adapterTitle')} subtitle={t('adapterSubtitle')} />
       {!selectedJob ? (
-        <Alert variant="warning">No job selected. <button onClick={() => onNavigate('scanner')} className="underline cursor-pointer">Scan a job first.</button></Alert>
+        <Alert variant="warning">{t('noJobSelected')} <button onClick={() => onNavigate('scanner')} className="underline cursor-pointer">{t('scanFirst')}</button></Alert>
       ) : (
         <>
+          <JobSwitcher jobs={jobs} selectedId={selectedJob.id} onSelect={onSelectJob} />
           <Card className="mb-4">
             <div className="flex justify-between items-center">
               <div>
                 <div className="font-medium">{selectedJob.title}</div>
                 <div className="text-[12px] text-gray-500">{selectedJob.company} · {selectedJob.location}</div>
               </div>
-              <div className="flex items-center gap-2">
-                <Tag variant="purple">{selectedJob.roleType}</Tag>
-                {jobs.length > 1 && (
-                  <Select value={selectedJob.id} onChange={e => onSelectJob(e.target.value)}>
-                    {jobs.map(j => <option key={j.id} value={j.id}>{j.title} — {j.company}</option>)}
-                  </Select>
-                )}
-              </div>
+              <Tag variant="purple">{selectedJob.roleType}</Tag>
             </div>
           </Card>
 
-          {/* Tabs */}
           <div className="flex border-b border-gray-100 mb-4">
             {[
-              { id: 'cl', label: 'Cover Letter', saved: !!selectedJob.coverLetter },
-              { id: 'cv', label: 'CV Tips', saved: !!selectedJob.cvTips },
-            ].map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)}
+              { id: 'cl', label: t('adapterTabCL'), saved: !!selectedJob.coverLetter },
+              { id: 'cv', label: t('adapterTabCV'), saved: !!selectedJob.cvTips },
+            ].map(tabItem => (
+              <button key={tabItem.id} onClick={() => setTab(tabItem.id)}
                 className={`px-4 py-2 text-[13px] border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${
-                  tab === t.id ? 'border-[#534AB7] text-[#534AB7] font-medium' : 'border-transparent text-gray-500 hover:text-gray-800'
-                }`}
-              >
-                {t.label}
-                {t.saved && <span className="text-[10px] bg-[#EEEDFE] text-[#534AB7] px-1.5 py-0.5 rounded">✓ saved</span>}
+                  tab === tabItem.id ? 'border-[#534AB7] text-[#534AB7] font-medium' : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}>
+                {tabItem.label}
+                {tabItem.saved && <span className="text-[10px] bg-[#EEEDFE] text-[#534AB7] px-1.5 py-0.5 rounded">{t('adapterSaved')}</span>}
               </button>
             ))}
           </div>
@@ -128,17 +90,17 @@ Responsibilities: ${selectedJob.keyResponsibilities}`
           <Card className="mb-4">
             {tab === 'cl' && (
               <div className="mb-3">
-                <Select label="Tone & style" value={tone} onChange={e => setTone(e.target.value)}>
-                  {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                <Select label={t('adapterToneLabel')} value={tone} onChange={e => setTone(e.target.value)}>
+                  {TONES.map(to => <option key={to.value} value={to.value}>{to.label}</option>)}
                 </Select>
               </div>
             )}
             <div className="flex items-center gap-3">
               <Button variant="primary" onClick={generate} disabled={loading}>
                 {loading
-                  ? <><Spinner />{tab === 'cl' ? 'Writing…' : 'Analyzing…'}</>
+                  ? <><Spinner />{tab === 'cl' ? t('adapterWriting') : t('adapterAnalyzing')}</>
                   : <><i className={`ti ${tab === 'cl' ? 'ti-wand' : 'ti-list-check'}`} />
-                    {output ? 'Regenerate' : tab === 'cl' ? 'Generate cover letter' : 'Generate CV tips'}</>
+                    {output ? (tab === 'cl' ? t('adapterRegenCL') : t('adapterRegenCV')) : (tab === 'cl' ? t('adapterGenCL') : t('adapterGenCV'))}</>
                 }
               </Button>
               {error && <span className="text-[12px] text-red-600">{error}</span>}
@@ -149,33 +111,19 @@ Responsibilities: ${selectedJob.keyResponsibilities}`
             <Card>
               <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="text-[12px] text-gray-500 font-medium">
-                    {tab === 'cl' ? 'Cover letter' : 'CV tips'}
-                  </div>
-                  {outputDate && (
-                    <span className="text-[11px] text-gray-400">
-                      · {new Date(outputDate).toLocaleDateString()}
-                    </span>
-                  )}
+                  <div className="text-[12px] text-gray-500 font-medium">{tab === 'cl' ? t('adapterCLLabel') : t('adapterCVLabel')}</div>
+                  {outputDate && <span className="text-[11px] text-gray-400">· {new Date(outputDate).toLocaleDateString()}</span>}
                 </div>
                 <Button size="sm" onClick={copy}>
-                  <i className={`ti ${copied ? 'ti-check' : 'ti-copy'}`} />
-                  {copied ? 'Copied!' : 'Copy'}
+                  <i className={`ti ${copied ? 'ti-check' : 'ti-copy'}`} />{copied ? t('copied') : t('copy')}
                 </Button>
               </div>
-              <div
-                contentEditable
-                suppressContentEditableWarning
-                onBlur={e => {
-                  const text = e.target.innerText
-                  if (tab === 'cl') onUpdateJob(selectedJob.id, { coverLetter: text })
-                  else onUpdateJob(selectedJob.id, { cvTips: text })
-                }}
-                className="text-[13px] leading-relaxed whitespace-pre-wrap bg-gray-50 rounded-lg p-4 outline-none focus:bg-white focus:ring-1 focus:ring-[#534AB7] transition-all"
-              >
+              <div contentEditable suppressContentEditableWarning
+                onBlur={e => { const text = e.target.innerText; tab === 'cl' ? onUpdateJob(selectedJob.id, { coverLetter: text }) : onUpdateJob(selectedJob.id, { cvTips: text }) }}
+                className="text-[13px] leading-relaxed whitespace-pre-wrap bg-gray-50 rounded-lg p-4 outline-none focus:bg-white focus:ring-1 focus:ring-[#534AB7]">
                 {output}
               </div>
-              <p className="text-[11px] text-gray-400 mt-2">Edits are saved automatically when you click away.</p>
+              <p className="text-[11px] text-gray-400 mt-2">{t('adapterEditHint')}</p>
             </Card>
           )}
         </>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { loadState, saveJobs, saveSelectedJob, saveToStorage, createJob, PIPELINE_COLUMNS } from './lib/state'
+import { loadState, saveJobs, saveSelectedJob, saveToStorage, createJob } from './lib/state'
+import { useLanguage } from './lib/useLanguage'
 import Scanner from './components/Scanner'
 import Qualify from './components/Qualify'
 import Pipeline from './components/Pipeline'
@@ -8,43 +9,32 @@ import Outreach from './components/Outreach'
 import ProfilePage from './components/ProfilePage'
 import ApiKeyPage from './components/ApiKeyPage'
 
-const NAV = [
-  { id: 'scanner',  label: 'Job Scanner',  icon: 'ti-search',        section: 'workflow' },
-  { id: 'qualify',  label: 'Pre-Qualify',  icon: 'ti-bolt',          section: 'workflow' },
-  { id: 'pipeline', label: 'Pipeline',     icon: 'ti-layout-kanban', section: 'workflow' },
-  { id: 'adapter',  label: 'Doc Adapter',  icon: 'ti-file-text',     section: 'workflow' },
-  { id: 'outreach', label: 'Outreach',     icon: 'ti-message',       section: 'workflow' },
-  { id: 'profile',  label: 'My Profile',   icon: 'ti-user',          section: 'settings' },
-  { id: 'apikey',   label: 'API Key',      icon: 'ti-key',           section: 'settings' },
-]
-
 export default function App() {
   const [page, setPage] = useState('scanner')
   const [appState, setAppState] = useState(() => loadState())
+  const { lang, setLang, t } = useLanguage()
 
-  // Persist jobs whenever they change
   useEffect(() => { saveJobs(appState.jobs) }, [appState.jobs])
 
-  // Helper: get currently selected job
   const selectedJob = appState.jobs.find(j => j.id === appState.selectedJobId) || null
 
   function navigate(p) { setPage(p) }
 
-  // Update a single job by id
   function updateJob(id, patch) {
     setAppState(s => ({
       ...s,
-      jobs: s.jobs.map(j => j.id === id ? { ...j, ...patch, lastAction: new Date().toISOString().split('T')[0] } : j)
+      jobs: s.jobs.map(j => j.id === id
+        ? { ...j, ...patch, lastAction: new Date().toISOString().split('T')[0] }
+        : j
+      )
     }))
   }
 
-  // Called when scanner extracts a job — auto-add to jobs list
   function handleJobScanned(scanData) {
     const existing = appState.jobs.find(j =>
       j.title === scanData.title && j.company === scanData.company
     )
     if (existing) {
-      // Re-select existing
       setAppState(s => ({ ...s, selectedJobId: existing.id }))
       saveSelectedJob(existing.id)
     } else {
@@ -79,49 +69,71 @@ export default function App() {
     localStorage.setItem('ph_apikey', key)
   }
 
+  function handlePipelineUpdate(jobs) {
+    setAppState(s => ({ ...s, jobs }))
+  }
+
+  const activeCount = appState.jobs.filter(p => !['closed', 'abandoned'].includes(p.status)).length
+
+  const NAV = [
+    { id: 'scanner',  label: t('navScanner'),  icon: 'ti-search',        section: 'workflow' },
+    { id: 'qualify',  label: t('navQualify'),  icon: 'ti-bolt',          section: 'workflow' },
+    { id: 'pipeline', label: t('navPipeline'), icon: 'ti-layout-kanban', section: 'workflow' },
+    { id: 'adapter',  label: t('navAdapter'),  icon: 'ti-file-text',     section: 'workflow' },
+    { id: 'outreach', label: t('navOutreach'), icon: 'ti-message',       section: 'workflow' },
+    { id: 'profile',  label: t('navProfile'),  icon: 'ti-user',          section: 'settings' },
+    { id: 'apikey',   label: t('navApiKey'),   icon: 'ti-key',           section: 'settings' },
+  ]
+
   const workflow = NAV.filter(n => n.section === 'workflow')
   const settings = NAV.filter(n => n.section === 'settings')
-  const activeCount = appState.jobs.filter(p => !['closed'].includes(p.status)).length
+
+  const sharedProps = { t, lang, selectedJob, jobs: appState.jobs, profile: appState.profile, onUpdateJob: updateJob, onSelectJob: handleSelectJob, onNavigate: navigate }
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
-      {/* Sidebar */}
       <aside className="w-52 flex-shrink-0 bg-white border-r border-gray-100 flex flex-col py-5">
+        {/* Logo + lang toggle */}
         <div className="px-5 pb-4 border-b border-gray-100 mb-2">
-          <div className="text-[15px] font-medium tracking-tight">🎯 Job Hunter</div>
-          <div className="text-[11px] text-gray-400 mt-0.5">AI-native job search</div>
+          <div className="flex items-center justify-between">
+            <div className="text-[15px] font-medium tracking-tight">🎯 {t('appName')}</div>
+            {/* FR/EN toggle */}
+            <div className="flex rounded-md border border-gray-200 overflow-hidden text-[11px]">
+              {['fr', 'en'].map(l => (
+                <button
+                  key={l}
+                  onClick={() => setLang(l)}
+                  className={`px-2 py-1 transition-colors ${
+                    lang === l ? 'bg-[#534AB7] text-white' : 'bg-white text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="text-[11px] text-gray-400 mt-0.5">{t('appSubtitle')}</div>
         </div>
 
         <div className="px-4 pt-3 pb-1">
-          <div className="text-[10px] font-medium uppercase tracking-widest text-gray-300 mb-1">Workflow</div>
+          <div className="text-[10px] font-medium uppercase tracking-widest text-gray-300 mb-1">{t('sectionWorkflow')}</div>
         </div>
         {workflow.map(item => (
-          <NavItem
-            key={item.id}
-            item={item}
-            active={page === item.id}
-            onClick={() => navigate(item.id)}
-            badge={item.id === 'pipeline' && activeCount > 0 ? activeCount : null}
-          />
+          <NavItem key={item.id} item={item} active={page === item.id} onClick={() => navigate(item.id)}
+            badge={item.id === 'pipeline' && activeCount > 0 ? activeCount : null} />
         ))}
 
         <div className="px-4 pt-4 pb-1">
-          <div className="text-[10px] font-medium uppercase tracking-widest text-gray-300 mb-1">Settings</div>
+          <div className="text-[10px] font-medium uppercase tracking-widest text-gray-300 mb-1">{t('sectionSettings')}</div>
         </div>
         {settings.map(item => (
-          <NavItem
-            key={item.id}
-            item={item}
-            active={page === item.id}
-            onClick={() => navigate(item.id)}
-            badge={item.id === 'apikey' && !appState.apiKey && !import.meta.env.PROD ? '!' : null}
-          />
+          <NavItem key={item.id} item={item} active={page === item.id} onClick={() => navigate(item.id)}
+            badge={item.id === 'apikey' && !appState.apiKey && !import.meta.env.PROD ? '!' : null} />
         ))}
 
-        {/* Active job chip */}
         {selectedJob && (
           <div className="mt-auto mx-3 mb-2 p-2.5 bg-[#EEEDFE] rounded-lg cursor-pointer" onClick={() => navigate('qualify')}>
-            <div className="text-[10px] text-[#7F77DD] font-medium uppercase tracking-wide mb-0.5">Active job</div>
+            <div className="text-[10px] text-[#7F77DD] font-medium uppercase tracking-wide mb-0.5">{t('activeJob')}</div>
             <div className="text-[11px] text-[#3C3489] font-medium truncate">{selectedJob.title}</div>
             <div className="text-[10px] text-[#534AB7] truncate">{selectedJob.company}</div>
             {selectedJob.recommendation && (
@@ -134,16 +146,15 @@ export default function App() {
         )}
       </aside>
 
-      {/* Main */}
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto px-6 py-6">
-          {page === 'scanner'  && <Scanner onJobScanned={handleJobScanned} />}
-          {page === 'qualify'  && <Qualify selectedJob={selectedJob} jobs={appState.jobs} profile={appState.profile} onUpdateJob={updateJob} onSelectJob={handleSelectJob} onNavigate={navigate} />}
-          {page === 'pipeline' && <Pipeline jobs={appState.jobs} selectedJobId={appState.selectedJobId} onUpdateJob={updateJob} onDeleteJob={handleDeleteJob} onSelectJob={handleSelectJob} onNavigate={navigate} />}
-          {page === 'adapter'  && <Adapter selectedJob={selectedJob} jobs={appState.jobs} profile={appState.profile} onUpdateJob={updateJob} onSelectJob={handleSelectJob} onNavigate={navigate} />}
-          {page === 'outreach' && <Outreach selectedJob={selectedJob} jobs={appState.jobs} profile={appState.profile} onUpdateJob={updateJob} onSelectJob={handleSelectJob} onNavigate={navigate} />}
-          {page === 'profile'  && <ProfilePage profile={appState.profile} onSave={handleProfileSave} />}
-          {page === 'apikey'   && <ApiKeyPage apiKey={appState.apiKey} onSave={handleApiKeySave} />}
+          {page === 'scanner'  && <Scanner {...sharedProps} onJobScanned={handleJobScanned} />}
+          {page === 'qualify'  && <Qualify {...sharedProps} />}
+          {page === 'pipeline' && <Pipeline {...sharedProps} onDeleteJob={handleDeleteJob} selectedJobId={appState.selectedJobId} />}
+          {page === 'adapter'  && <Adapter {...sharedProps} />}
+          {page === 'outreach' && <Outreach {...sharedProps} />}
+          {page === 'profile'  && <ProfilePage t={t} profile={appState.profile} onSave={handleProfileSave} />}
+          {page === 'apikey'   && <ApiKeyPage t={t} apiKey={appState.apiKey} onSave={handleApiKeySave} />}
         </div>
       </main>
     </div>
@@ -152,8 +163,7 @@ export default function App() {
 
 function NavItem({ item, active, onClick, badge }) {
   return (
-    <button
-      onClick={onClick}
+    <button onClick={onClick}
       className={`w-full flex items-center justify-between px-4 py-2 text-[13px] transition-all border-l-2 ${
         active ? 'border-[#534AB7] bg-[#EEEDFE] text-[#3C3489] font-medium'
                : 'border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-800'

@@ -4,17 +4,17 @@ import { Card, Button, Textarea, Input, Alert, PageHeader, Spinner } from './UI'
 
 const SCAN_SYSTEM = `You are a job posting parser. You MUST return ONLY a valid JSON object. No apologies, no explanations, no markdown, no preamble. If content is missing, use null. Never refuse — always parse what you have.
 
-For roleType, classify based on ACTUAL RESPONSIBILITIES, not just the job title. A title may say "Pre-Sales" but if the role focuses on post-sale delivery, implementation, or customer success, classify it correctly.
+For roleType, classify based on ACTUAL RESPONSIBILITIES, not just the job title:
 - "Pre-Sales": discovery, demos, POCs, RFPs, deal support BEFORE contract signature
 - "Solutions Consulting": technical advisory, solution design, proof of value — pre-sale focused
-- "Forward Deployed": embedded in customer environments, hands-on technical deployment, post-sale but highly technical
+- "Forward Deployed": embedded in customer environments, hands-on technical deployment
 - "Sales": quota-carrying, pipeline generation, account executive
 - "Post-Sales / CS": implementation, onboarding, customer success, delivery after contract
 - "Engineering": software development, data science, ML engineering
 - "Product": product management, product marketing
-- "Other": anything that doesn't fit above
+- "Other": anything else
 
-Return exactly this JSON structure:
+Return exactly this JSON:
 {
   "title": string,
   "company": string,
@@ -25,10 +25,13 @@ Return exactly this JSON structure:
   "requiredStack": string array (max 12 items),
   "keyResponsibilities": string (2-3 sentence summary),
   "postedDate": string or null,
-  "sourceUrl": string or null
-}`
+  "sourceUrl": string or null,
+  "hiringManager": string or null (name + title if mentioned — e.g. "John Smith, VP Engineering"),
+  "hrContact": string or null (HR representative name + title if mentioned)
+}
+For hiringManager and hrContact: look for "reports to", "contact", "recruiter", "talent acquisition", "hiring manager". If not found, return null.`
 
-export default function Scanner({ onJobScanned }) {
+export default function Scanner({ t, onJobScanned }) {
   const [tab, setTab] = useState('text')
   const [url, setUrl] = useState('')
   const [text, setText] = useState('')
@@ -37,7 +40,7 @@ export default function Scanner({ onJobScanned }) {
 
   async function runScan() {
     const input = tab === 'url' ? url.trim() : text.trim()
-    if (!input) { setError('Enter a URL or paste job text first.'); return }
+    if (!input) { setError(t('scannerError')); return }
     setLoading(true)
     setError('')
     try {
@@ -60,50 +63,37 @@ export default function Scanner({ onJobScanned }) {
 
   return (
     <div>
-      <PageHeader title="Job Scanner" subtitle="Paste a job description — auto-saved to pipeline" />
+      <PageHeader title={t('scannerTitle')} subtitle={t('scannerSubtitle')} />
       <Card>
         <div className="flex border-b border-gray-100 mb-4">
-          {['text', 'url'].map(t => (
-            <button key={t} onClick={() => setTab(t)}
+          {['text', 'url'].map(tabId => (
+            <button key={tabId} onClick={() => setTab(tabId)}
               className={`px-4 py-2 text-[13px] border-b-2 -mb-px transition-colors ${
-                tab === t ? 'border-[#534AB7] text-[#534AB7] font-medium' : 'border-transparent text-gray-500 hover:text-gray-800'
+                tab === tabId ? 'border-[#534AB7] text-[#534AB7] font-medium' : 'border-transparent text-gray-500 hover:text-gray-800'
               }`}
-            >{t === 'text' ? 'Paste text' : 'URL'}</button>
+            >{tabId === 'text' ? t('scannerTabText') : t('scannerTabUrl')}</button>
           ))}
         </div>
 
         {tab === 'text' ? (
           <div className="mb-4">
-            <Textarea
-              label="Job description — copy/paste from LinkedIn, Greenhouse, Lever, Workday…"
-              value={text}
-              onChange={e => setText(e.target.value)}
-              placeholder="Paste the full job description here…"
-              rows={8}
-            />
+            <Textarea label={t('scannerLabelText')} value={text} onChange={e => setText(e.target.value)}
+              placeholder="…" rows={8} />
           </div>
         ) : (
           <div className="mb-4">
-            <Input
-              label="Job posting URL (public pages — Greenhouse, Lever, Workday, direct career pages)"
-              type="url"
-              value={url}
-              onChange={e => setUrl(e.target.value)}
-              placeholder="https://boards.greenhouse.io/..."
-            />
-            <Alert variant="warning" className="mt-2">
-              LinkedIn requires login — use Paste text for LinkedIn jobs.
-            </Alert>
+            <Input label={t('scannerLabelUrl')} type="url" value={url} onChange={e => setUrl(e.target.value)}
+              placeholder="https://boards.greenhouse.io/..." />
+            <Alert variant="warning" className="mt-2">{t('scannerWarningLinkedIn')}</Alert>
           </div>
         )}
 
         {error && <Alert variant="danger" className="mb-3">{error}</Alert>}
 
         <Button variant="primary" onClick={runScan} disabled={loading}>
-          {loading ? <><Spinner /> Scanning…</> : <><i className="ti ti-scan" />Extract & save to pipeline</>}
+          {loading ? <><Spinner />{t('scannerScanning')}</> : <><i className="ti ti-scan" />{t('scannerBtn')}</>}
         </Button>
-
-        <p className="text-[11px] text-gray-400 mt-2">Job is automatically added to your pipeline and you'll be taken to Pre-Qualify.</p>
+        <p className="text-[11px] text-gray-400 mt-2">{t('scannerHint')}</p>
       </Card>
     </div>
   )
