@@ -88,7 +88,7 @@ export default function App() {
       <aside className="w-52 flex-shrink-0 bg-white border-r border-gray-100 flex flex-col py-5">
         {/* Logo */}
         <div className="px-5 pb-4 border-b border-gray-100 mb-2">
-          <div className="text-[15px] font-medium tracking-tight">🎯 PreSales Hunter</div>
+          <div className="text-[15px] font-medium tracking-tight">🎯 Job Hunter</div>
           <div className="text-[11px] text-gray-400 mt-0.5">AI-native job search</div>
         </div>
 

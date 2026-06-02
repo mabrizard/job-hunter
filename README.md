@@ -1,7 +1,7 @@
-# PreSales Hunter
+# Job Hunter
 
 **AI-native personal job search tool** — built to run my own job search as a senior pre-sales leader.  
-Live demo: [presales-hunter.vercel.app](https://presales-hunter.vercel.app)
+Live demo: [job-hunter-pied.vercel.app](https://job-hunter-pied.vercel.app)
 
 > *"I built this to run my own job search — here's the architecture."*
 
@@ -13,11 +13,11 @@ Live demo: [presales-hunter.vercel.app](https://presales-hunter.vercel.app)
 
 | Module | Function | AI pattern |
 |--------|----------|-----------|
-| **Job Scanner** | URL → structured JSON (title, company, geo, stack, seniority, comp) | Tool-calling: URL-in → structured-data-out |
+| **Job Scanner** | Paste text / URL → structured JSON (title, company, geo, stack, seniority, comp) | Tool-calling: input → structured-data-out |
 | **Pre-Qualify Agent** | Scoring 0–100 across 6 dimensions + GO/INVESTIGATE/NO-GO | RAG + structured output |
 | **Pipeline Tracker** | Kanban (Identified → Applied → In Process → Offer → Closed) | localStorage persistence |
 | **Document Adapter** | Tailored cover letters + CV tips per posting | RAG + prompt engineering |
-| **Outreach Generator** | LinkedIn messages — peer tone, 2 variants, bilingual | Few-shot prompt engineering |
+| **Outreach Generator** | LinkedIn messages — peer tone, 2 variants, bilingual FR/EN | Few-shot prompt engineering |
 
 ---
 
@@ -32,14 +32,14 @@ Browser (React 18 SPA)
     │
     ├── localStorage  (pipeline, profile, current job)
     │
-    └── User's search profile  (injected as RAG context on every call)
+    └── User search profile  (injected as RAG context on every call)
 ```
 
 ### Stack
 - **Frontend**: React 18, Tailwind CSS, Vite, deployed on Vercel
 - **LLM**: Claude Sonnet via Anthropic API
-- **API proxy**: Vercel serverless function (`/api/claude.js`) — key stored server-side
-- **RAG**: Profile + CV summary + dealbreakers injected as system prompt on every agent call (no vector DB in v1 — context window injection is sufficient for a single-user tool)
+- **API proxy**: Vercel serverless function (`/api/claude.js`) — key stored server-side, never exposed to client
+- **RAG**: Profile + CV summary + dealbreakers injected as system prompt on every agent call — no vector DB needed in v1
 - **Persistence**: localStorage v1, Supabase migration planned for v2
 
 ---
@@ -50,7 +50,6 @@ Browser (React 18 SPA)
 The user's search profile (target roles, salary floor, geographies, strengths, dealbreakers, CV summary) is injected into the system prompt of every API call. No vector database needed for a single-user tool — full profile fits in context.
 
 ```js
-// buildQualifySystem() in Qualify.jsx
 const sys = `You are a senior career coach...
 CANDIDATE PROFILE (RAG context):
 - Target roles: ${profile.targetRoles}
@@ -69,8 +68,7 @@ Every agent returns a strict JSON schema, validated client-side. The Pre-Qualify
   "recommendation": "GO",
   "dimensions": [
     { "name": "Geo fit", "score": 90, "note": "Montréal — priority geography" },
-    { "name": "Role type fit", "score": 85, "note": "Director Pre-Sales exact match" },
-    ...
+    { "name": "Role type fit", "score": 85, "note": "Director Pre-Sales exact match" }
   ],
   "flags": [
     { "type": "positive", "message": "MEDDPICC explicitly required — direct match" },
@@ -79,18 +77,12 @@ Every agent returns a strict JSON schema, validated client-side. The Pre-Qualify
 }
 ```
 
-The UI renders scores as bar charts and flags as typed alerts — the structured output drives the entire display layer.
+The UI renders scores as dimension bars and flags as typed alerts — structured output drives the entire display layer.
 
 ### 3. Tool-calling pattern (job scanner)
-The Job Scanner treats URL fetching as a tool call: URL-in → Claude fetches + parses → structured JSON out. The same interface handles both URL input and raw text paste, normalizing to the same output schema.
+The Job Scanner treats job extraction as a tool call: text/URL-in → Claude parses → structured JSON out. Same interface handles both URL input and raw text paste, normalizing to the same output schema.
 
-```
-User input: { url: "https://linkedin.com/jobs/..." }
-              ↓ callClaude(SCAN_SYSTEM, "Fetch and parse: {url}")
-Output: { title, company, location, roleType, seniority, compensation, requiredStack[], ... }
-```
-
-### 4. Multi-agent pipeline (chained workflow)
+### 4. Multi-agent pipeline
 The 5 modules form an explicit agentic pipeline:
 
 ```
@@ -102,26 +94,25 @@ Scan → Qualify → [Pipeline] → Adapt → Outreach
 
 Each agent receives the same job object + user profile. State flows forward — qualify score feeds the pipeline card, pipeline card links to doc adapter for the same role.
 
-### 5. Prompt engineering — per-agent system prompts
+### 5. Per-agent prompt engineering
 Each module has a purpose-built system prompt with explicit constraints:
 
-- **Scanner**: strict JSON schema, no markdown in output
+- **Scanner**: strict JSON schema, never refuse, always parse
 - **Qualify**: depriorization rule (2+ mismatches → score < 40), dimension-by-dimension scoring
-- **Cover letter**: 3-paragraph structure, no generic phrases, max 250 words, language detection
-- **Outreach**: max 3 sentences, zero flattery phrases (enumerated as forbidden), peer-tone enforcement
+- **Cover letter**: 3-paragraph structure, no generic phrases, max 250 words, auto language detection FR/EN
+- **Outreach**: max 3 sentences, zero flattery (enumerated as forbidden), peer-tone enforcement
 
 ---
 
 ## Local setup
 
 ```bash
-git clone https://github.com/your-username/presales-hunter
-cd presales-hunter
+git clone https://github.com/mabrizard/job-hunter
+cd job-hunter
 npm install
 npm run dev
+# Add your Anthropic API key in Settings → API Key
 ```
-
-Add your Anthropic API key in the app: Settings → API Key (stored in localStorage, dev only).
 
 ---
 
@@ -129,27 +120,24 @@ Add your Anthropic API key in the app: Settings → API Key (stored in localStor
 
 ```bash
 # 1. Push to GitHub
-# 2. Connect repo in Vercel dashboard
+# 2. Connect repo in Vercel dashboard → New Project → Import
 # 3. Add environment variable: ANTHROPIC_API_KEY=sk-ant-...
-# 4. Deploy
+# 4. Deploy — /api/claude.js serverless function proxies all LLM calls
 ```
-
-The `/api/claude.js` serverless function proxies all LLM calls — the API key is never sent to the browser in production.
 
 ---
 
 ## v2 roadmap
 
 - [ ] Supabase persistence (multi-device sync)
-- [ ] PDF CV upload → parsed as RAG context
-- [ ] Email/calendar integration for follow-up tracking
-- [ ] Batch scoring of multiple postings
+- [ ] PDF CV upload → parsed and injected as RAG context
 - [ ] ATS keyword match score (M1 extension)
+- [ ] Batch scoring of multiple postings
+- [ ] Email/calendar integration for follow-up tracking
 
 ---
 
 ## Built with
 
-100% prompt engineering with Claude — architecture decisions, UX, code generation, debugging.  
-Marc-Alexandre piloted specs and arbitration. Claude generated, debugged, and patched.  
+100% prompt engineering with Claude — architecture, UX, code generation, debugging.  
 Delivery: under 2 weeks from spec to production.
