@@ -18,6 +18,8 @@ export function loadState() {
     jobs: JSON.parse(localStorage.getItem('ph_jobs') || '[]'),
     // selectedJobId = currently active job across all modules
     selectedJobId: localStorage.getItem('ph_selectedjob') || null,
+    // Uploaded CV text — injected as RAG context
+    cvText: localStorage.getItem('ph_cvtext') || null,
   }
 }
 
@@ -69,6 +71,13 @@ export function createJob(scanData) {
     cvTipsDate: null,
     // Outreach
     outreachMessages: [],
+    // ATS & probability
+    atsScore: null,
+    atsKeywords: null,
+    atsDate: null,
+    probabilityScore: null,
+    probabilityFactors: null,
+    probabilityDate: null,
     // Pipeline
     status: 'identified',
     contacts: '',

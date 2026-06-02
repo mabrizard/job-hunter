@@ -129,6 +129,8 @@ export const translations = {
   profileSaved:   { fr: '✓ Sauvegardé',             en: '✓ Saved' },
 
   navTimeline:    { fr: 'Timeline',                en: 'Timeline' },
+  navATS:         { fr: 'ATS & Probabilité',        en: 'ATS & Probability' },
+  navCV:          { fr: 'Mon CV',                    en: 'My CV' },
 
   // API Key
   apiKeyTitle:    { fr: 'Clé API',                  en: 'API Key' },

@@ -9,11 +9,14 @@ import Outreach from './components/Outreach'
 import ProfilePage from './components/ProfilePage'
 import ApiKeyPage from './components/ApiKeyPage'
 import Timeline from './components/Timeline'
+import ATSScore from './components/ATSScore'
+import CVUpload from './components/CVUpload'
 
 export default function App() {
   const [page, setPage] = useState('scanner')
   const [appState, setAppState] = useState(() => loadState())
   const { lang, setLang, t } = useLanguage()
+  const [cvText, setCvText] = React.useState(() => localStorage.getItem('ph_cvtext') || null)
 
   useEffect(() => { saveJobs(appState.jobs) }, [appState.jobs])
 
@@ -65,6 +68,12 @@ export default function App() {
     saveToStorage('ph_profile', profile)
   }
 
+  function handleCVUpdate(text) {
+    setCvText(text)
+    if (text) localStorage.setItem('ph_cvtext', text)
+    else localStorage.removeItem('ph_cvtext')
+  }
+
   function handleApiKeySave(key) {
     setAppState(s => ({ ...s, apiKey: key }))
     localStorage.setItem('ph_apikey', key)
@@ -83,6 +92,8 @@ export default function App() {
     { id: 'adapter',  label: t('navAdapter'),  icon: 'ti-file-text',     section: 'workflow' },
     { id: 'outreach', label: t('navOutreach'), icon: 'ti-message',       section: 'workflow' },
     { id: 'timeline', label: t('navTimeline'), icon: 'ti-chart-bar',     section: 'workflow' },
+    { id: 'ats',      label: t('navATS'),      icon: 'ti-target',        section: 'workflow' },
+    { id: 'cv',       label: t('navCV'),        icon: 'ti-id',            section: 'settings' },
     { id: 'profile',  label: t('navProfile'),  icon: 'ti-user',          section: 'settings' },
     { id: 'apikey',   label: t('navApiKey'),   icon: 'ti-key',           section: 'settings' },
   ]
@@ -90,7 +101,7 @@ export default function App() {
   const workflow = NAV.filter(n => n.section === 'workflow')
   const settings = NAV.filter(n => n.section === 'settings')
 
-  const sharedProps = { t, lang, selectedJob, jobs: appState.jobs, profile: appState.profile, onUpdateJob: updateJob, onSelectJob: handleSelectJob, onNavigate: navigate }
+  const sharedProps = { t, lang, selectedJob, jobs: appState.jobs, profile: appState.profile, cvText, onUpdateJob: updateJob, onSelectJob: handleSelectJob, onNavigate: navigate }
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
@@ -156,6 +167,8 @@ export default function App() {
           {page === 'adapter'  && <Adapter {...sharedProps} />}
           {page === 'outreach' && <Outreach {...sharedProps} />}
           {page === 'timeline' && <Timeline t={t} lang={lang} jobs={appState.jobs} />}
+          {page === 'ats'      && <ATSScore {...sharedProps} />}
+          {page === 'cv'       && <CVUpload t={t} lang={lang} cvText={cvText} onCVUpdate={handleCVUpdate} />}
           {page === 'profile'  && <ProfilePage t={t} profile={appState.profile} onSave={handleProfileSave} />}
           {page === 'apikey'   && <ApiKeyPage t={t} apiKey={appState.apiKey} onSave={handleApiKeySave} />}
         </div>

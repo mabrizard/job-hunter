@@ -2,16 +2,18 @@ import React, { useState } from 'react'
 import { callClaude } from '../lib/api'
 import { Card, Button, Alert, Tag, PageHeader, Select, Spinner, JobSwitcher } from './UI'
 
-function buildCLSystem(profile, tone) {
+function buildCLSystem(profile, tone, cvText) {
   return `You are an expert cover letter writer for senior pre-sales leaders. Write in a ${tone} style.
 CANDIDATE (RAG context):
-Name: ${profile.name} | Strengths: ${profile.strengths} | CV summary: ${profile.cvSummary}
+Name: ${profile.name} | Strengths: ${profile.strengths} | CV summary: ${profile.cvSummary}${cvText ? `
+Full CV (first 2000 chars): ${cvText.slice(0, 2000)}` : ''}
 RULES: NO generic phrases. 3 paragraphs: hook, evidence (3 differentiators), close. Max 250 words. Match job language (FR/EN). Peer tone.`
 }
 
-function buildCVSystem(profile) {
+function buildCVSystem(profile, cvText) {
   return `You are an expert CV advisor for senior pre-sales roles.
-CANDIDATE (RAG context): Strengths: ${profile.strengths} | CV: ${profile.cvSummary}
+CANDIDATE (RAG context): Strengths: ${profile.strengths} | CV: ${profile.cvSummary}${cvText ? `
+Full CV: ${cvText.slice(0, 2000)}` : ''}
 Provide 6–8 specific actionable CV tips. Format: numbered list. WHAT → WHY. Reference actual requirements. No generic advice.`
 }
 
@@ -46,7 +48,7 @@ async function exportToPDF(text, filename) {
   }, 500)
 }
 
-export default function Adapter({ t, selectedJob, jobs, profile, onUpdateJob, onSelectJob, onNavigate }) {
+export default function Adapter({ t, selectedJob, jobs, profile, cvText, onUpdateJob, onSelectJob, onNavigate }) {
   const [tab, setTab] = useState('cl')
   const [tone, setTone] = useState('executive, confident, direct — short sentences, no fluff')
   const [loading, setLoading] = useState(false)
@@ -65,7 +67,7 @@ export default function Adapter({ t, selectedJob, jobs, profile, onUpdateJob, on
     setLoading(true); setError('')
     try {
       if (tab === 'cl') {
-        const text = await callClaude(buildCLSystem(profile, tone),
+        const text = await callClaude(buildCLSystem(profile, tone, cvText),
           `Write a cover letter for: ${selectedJob.title} at ${selectedJob.company} (${selectedJob.location})\nResponsibilities: ${selectedJob.keyResponsibilities}\nRequired: ${(selectedJob.requiredStack||[]).join(', ')}`, 1000)
 
         // Save current as history before overwriting
@@ -85,7 +87,7 @@ export default function Adapter({ t, selectedJob, jobs, profile, onUpdateJob, on
           coverLetterHistory: trimmedHistory,
         })
       } else {
-        const text = await callClaude(buildCVSystem(profile),
+        const text = await callClaude(buildCVSystem(profile, cvText),
           `CV tips for: ${selectedJob.title} at ${selectedJob.company}\nRole type: ${selectedJob.roleType} | Seniority: ${selectedJob.seniority}\nRequirements: ${(selectedJob.requiredStack||[]).join(', ')}\nResponsibilities: ${selectedJob.keyResponsibilities}`, 1000)
         onUpdateJob(selectedJob.id, { cvTips: text, cvTipsDate: new Date().toISOString() })
       }

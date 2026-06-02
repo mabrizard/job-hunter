@@ -3,7 +3,7 @@ import { callClaude, parseJSON } from '../lib/api'
 import { convertToCAD } from '../lib/fx'
 import { Card, Button, Alert, Tag, ScoreBadge, PageHeader, DimBar, Spinner, JobSwitcher, FXChip, ContactChip } from './UI'
 
-function buildQualifySystem(profile) {
+function buildQualifySystem(profile, cvText) {
   return `You are a senior career coach specializing in pre-sales leadership roles in enterprise SaaS.
 Score this job posting against the candidate's target profile.
 
@@ -15,6 +15,7 @@ CANDIDATE PROFILE (RAG context):
 - Key strengths: ${profile.strengths}
 - Dealbreakers: ${profile.dealbreakers}
 - CV summary: ${profile.cvSummary}
+${cvText ? `- Full CV text (first 2000 chars): ${cvText.slice(0, 2000)}` : ''}
 
 DEPRIORIZATION RULE: If 2+ significant mismatches → total score below 40.
 
@@ -39,7 +40,7 @@ const REC_VARIANT = { GO: 'go', INVESTIGATE: 'investigate', 'NO-GO': 'nogo' }
 const FLAG_ICON = { positive: 'ti-check', warning: 'ti-alert-triangle', dealbreaker: 'ti-ban' }
 const FLAG_COLOR = { positive: 'text-green-700', warning: 'text-amber-700', dealbreaker: 'text-red-700' }
 
-export default function Qualify({ t, selectedJob, jobs, profile, onUpdateJob, onSelectJob, onNavigate }) {
+export default function Qualify({ t, selectedJob, jobs, profile, cvText, onUpdateJob, onSelectJob, onNavigate }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [fx, setFx] = useState(null)
@@ -62,7 +63,7 @@ export default function Qualify({ t, selectedJob, jobs, profile, onUpdateJob, on
     setLoading(true)
     setError('')
     try {
-      const raw = await callClaude(buildQualifySystem(profile), `Score this job:
+      const raw = await callClaude(buildQualifySystem(profile, cvText), `Score this job:
 Title: ${selectedJob.title}
 Company: ${selectedJob.company}
 Location: ${selectedJob.location}
