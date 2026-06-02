@@ -7,6 +7,9 @@ export const DEFAULT_PROFILE = {
   geos: 'Québec, Alberta, Toronto, Ottawa, Montréal, Calgary (priority). EMEA / France (fallback). UK excluded.',
   strengths: 'Player/coach leadership, MEDDPICC, C-level relationships, regulated sectors (finance, healthcare, public sector), bilingual FR/EN, AI-native',
   dealbreakers: 'UK-only roles, pure IC non-management, below salary floor, unrelated domain (HR tech, pure e-commerce), no management scope',
+  phone: '',
+  email: '',
+  linkedin: '',
   cvSummary: `Senior pre-sales leader with 10+ years in enterprise SaaS. Led teams of 5–12 SCs across EMEA and North America. Deep expertise in regulated industries (finance, healthcare, public sector). Fluent French/English. Consistent track record closing €5M+ deals with MEDDPICC. Player/coach: still demo, still technical, while building and coaching the team. AI-native: uses LLMs in daily workflow.`,
 }
 
@@ -20,6 +23,9 @@ export function loadState() {
     selectedJobId: localStorage.getItem('ph_selectedjob') || null,
     // Uploaded CV text — injected as RAG context
     cvText: localStorage.getItem('ph_cvtext') || null,
+    // Reference documents
+    refCV: localStorage.getItem('ph_refcv') || null,
+    refCoverLetter: localStorage.getItem('ph_refcl') || null,
   }
 }
 
