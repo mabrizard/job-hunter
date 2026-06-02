@@ -4,12 +4,22 @@ import { Card, Button, Textarea, Input, Alert, PageHeader, Spinner } from './UI'
 
 const SCAN_SYSTEM = `You are a job posting parser. You MUST return ONLY a valid JSON object. No apologies, no explanations, no markdown, no preamble. If content is missing, use null. Never refuse — always parse what you have.
 
+For roleType, classify based on ACTUAL RESPONSIBILITIES, not just the job title. A title may say "Pre-Sales" but if the role focuses on post-sale delivery, implementation, or customer success, classify it correctly.
+- "Pre-Sales": discovery, demos, POCs, RFPs, deal support BEFORE contract signature
+- "Solutions Consulting": technical advisory, solution design, proof of value — pre-sale focused
+- "Forward Deployed": embedded in customer environments, hands-on technical deployment, post-sale but highly technical
+- "Sales": quota-carrying, pipeline generation, account executive
+- "Post-Sales / CS": implementation, onboarding, customer success, delivery after contract
+- "Engineering": software development, data science, ML engineering
+- "Product": product management, product marketing
+- "Other": anything that doesn't fit above
+
 Return exactly this JSON structure:
 {
   "title": string,
   "company": string,
   "location": string,
-  "roleType": "Pre-Sales" | "Solutions Consulting" | "Forward Deployed" | "Sales" | "Engineering" | "Product" | "Other",
+  "roleType": "Pre-Sales" | "Solutions Consulting" | "Forward Deployed" | "Sales" | "Post-Sales / CS" | "Engineering" | "Product" | "Other",
   "seniority": "IC" | "Manager" | "Director" | "VP" | "C-Level" | "Unknown",
   "compensation": string or null,
   "requiredStack": string array (max 12 items),
