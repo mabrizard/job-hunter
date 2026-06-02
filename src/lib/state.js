@@ -1,4 +1,4 @@
-// Default search profile — pre-filled with Marc-Alexandre's parameters
+// Default search profile
 export const DEFAULT_PROFILE = {
   name: 'Marc-Alexandre',
   targetRoles: 'Manager / Director Pre-Sales, Solutions Consulting Manager, Forward Deployed Manager',
@@ -10,24 +10,69 @@ export const DEFAULT_PROFILE = {
   cvSummary: `Senior pre-sales leader with 10+ years in enterprise SaaS. Led teams of 5–12 SCs across EMEA and North America. Deep expertise in regulated industries (finance, healthcare, public sector). Fluent French/English. Consistent track record closing €5M+ deals with MEDDPICC. Player/coach: still demo, still technical, while building and coaching the team. AI-native: uses LLMs in daily workflow.`,
 }
 
-// Load from localStorage or fall back to defaults
 export function loadState() {
   return {
     apiKey: localStorage.getItem('ph_apikey') || '',
     profile: JSON.parse(localStorage.getItem('ph_profile') || 'null') || DEFAULT_PROFILE,
-    pipeline: JSON.parse(localStorage.getItem('ph_pipeline') || '[]'),
-    currentJob: JSON.parse(localStorage.getItem('ph_currentjob') || 'null'),
-    currentScore: JSON.parse(localStorage.getItem('ph_currentscore') || 'null'),
+    // jobs = single source of truth — pipeline + all generated content per job
+    jobs: JSON.parse(localStorage.getItem('ph_jobs') || '[]'),
+    // selectedJobId = currently active job across all modules
+    selectedJobId: localStorage.getItem('ph_selectedjob') || null,
   }
+}
+
+export function saveJobs(jobs) {
+  localStorage.setItem('ph_jobs', JSON.stringify(jobs))
+}
+
+export function saveSelectedJob(id) {
+  if (id) localStorage.setItem('ph_selectedjob', id)
+  else localStorage.removeItem('ph_selectedjob')
 }
 
 export function saveToStorage(key, value) {
   localStorage.setItem(key, JSON.stringify(value))
 }
 
-export function clearJob() {
-  localStorage.removeItem('ph_currentjob')
-  localStorage.removeItem('ph_currentscore')
+// Create a new job entry with all fields
+export function createJob(scanData) {
+  return {
+    id: `job_${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    // Scanner data
+    title: scanData.title,
+    company: scanData.company,
+    location: scanData.location,
+    roleType: scanData.roleType,
+    seniority: scanData.seniority,
+    compensation: scanData.compensation,
+    requiredStack: scanData.requiredStack || [],
+    keyResponsibilities: scanData.keyResponsibilities,
+    postedDate: scanData.postedDate,
+    sourceUrl: scanData.sourceUrl || scanData._url || '',
+    _rawText: scanData._rawText || '',
+    // Pre-qualify
+    score: null,
+    recommendation: null,
+    scoreDimensions: null,
+    scoreAnalysis: null,
+    scoreFlags: null,
+    scoreDate: null,
+    // Doc adapter
+    coverLetter: null,
+    coverLetterTone: null,
+    coverLetterDate: null,
+    cvTips: null,
+    cvTipsDate: null,
+    // Outreach
+    outreachMessages: [],
+    // Pipeline
+    status: 'identified',
+    contacts: '',
+    nextFollowUp: '',
+    notes: '',
+    lastAction: new Date().toISOString().split('T')[0],
+  }
 }
 
 export const PIPELINE_COLUMNS = [

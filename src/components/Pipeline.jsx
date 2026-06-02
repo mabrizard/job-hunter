@@ -1,215 +1,173 @@
 import React, { useState } from 'react'
 import { PIPELINE_COLUMNS } from '../lib/state'
-import { Card, Button, Input, Textarea, Select, ScoreBadge, PageHeader } from './UI'
+import { Card, Button, Input, Textarea, Select, ScoreBadge, Tag, PageHeader, Alert } from './UI'
 
-export default function Pipeline({ pipeline, currentJob, currentScore, onUpdate, onNavigate }) {
-  const [selected, setSelected] = useState(null)
-
-  function addCurrentJob() {
-    if (!currentJob) return
-    const id = currentJob._url || `${currentJob.title}-${currentJob.company}-${Date.now()}`
-    if (pipeline.find(p => p.id === id)) return
-    const newEntry = {
-      id,
-      title: currentJob.title,
-      company: currentJob.company,
-      location: currentJob.location,
-      roleType: currentJob.roleType,
-      score: currentScore?.total ?? null,
-      recommendation: currentScore?.recommendation ?? null,
-      status: 'identified',
-      contacts: '',
-      lastAction: today(),
-      nextFollowUp: '',
-      notes: '',
-      url: currentJob._url || '',
-    }
-    onUpdate([...pipeline, newEntry])
-    setSelected(id)
-  }
-
-  function updateEntry(id, field, value) {
-    onUpdate(pipeline.map(p => p.id === id ? { ...p, [field]: value, lastAction: today() } : p))
-  }
-
-  function removeEntry(id) {
-    if (!confirm('Remove from pipeline?')) return
-    onUpdate(pipeline.filter(p => p.id !== id))
-    if (selected === id) setSelected(null)
-  }
-
-  const active = pipeline.filter(p => p.status !== 'closed').length
+export default function Pipeline({ jobs, selectedJobId, onUpdateJob, onDeleteJob, onSelectJob, onNavigate }) {
+  const [expandedId, setExpandedId] = useState(selectedJobId)
+  const activeCount = jobs.filter(j => j.status !== 'closed').length
 
   return (
     <div>
       <div className="flex items-start justify-between mb-6">
-        <PageHeader
-          title="Pipeline"
-          subtitle={`${pipeline.length} total · ${active} active`}
-        />
-        <div className="flex gap-2 mt-1">
-          {currentJob && (
-            <Button variant="primary" size="sm" onClick={addCurrentJob}>
-              <i className="ti ti-plus" />Add current job
-            </Button>
-          )}
-          <Button size="sm" onClick={() => onNavigate('scanner')}>
-            <i className="ti ti-search" />Scan new job
-          </Button>
-        </div>
+        <PageHeader title="Pipeline" subtitle={`${jobs.length} total · ${activeCount} active`} />
+        <Button size="sm" variant="primary" onClick={() => onNavigate('scanner')}>
+          <i className="ti ti-plus" />Scan new job
+        </Button>
       </div>
 
-      {pipeline.length === 0 ? (
-        <EmptyState onNavigate={onNavigate} />
+      {jobs.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">
+          <i className="ti ti-layout-kanban text-3xl block mb-3" />
+          <p className="text-[13px] mb-4">No jobs yet. Scan a posting to get started.</p>
+          <Button onClick={() => onNavigate('scanner')}><i className="ti ti-search" />Scan a job</Button>
+        </div>
       ) : (
-        <div className="overflow-x-auto">
-          <div className="grid gap-3 min-w-[900px]" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-            {PIPELINE_COLUMNS.map(col => (
-              <KanbanColumn
-                key={col.id}
-                col={col}
-                cards={pipeline.filter(p => p.status === col.id)}
-                selected={selected}
-                onSelect={setSelected}
-              />
-            ))}
+        <>
+          {/* Kanban */}
+          <div className="overflow-x-auto mb-6">
+            <div className="grid gap-3 min-w-[900px]" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+              {PIPELINE_COLUMNS.map(col => {
+                const cards = jobs.filter(j => j.status === col.id)
+                return (
+                  <div key={col.id} className="bg-gray-50 rounded-xl p-3 min-h-[200px]">
+                    <div className="flex justify-between items-center mb-2.5">
+                      <span className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{col.label}</span>
+                      <span className="text-[10px] bg-white rounded-full px-2 py-0.5 text-gray-500 border border-gray-200">{cards.length}</span>
+                    </div>
+                    {cards.length === 0 && <div className="text-[11px] text-gray-300 text-center py-4">—</div>}
+                    {cards.map(j => (
+                      <div
+                        key={j.id}
+                        onClick={() => { onSelectJob(j.id); setExpandedId(expandedId === j.id ? null : j.id) }}
+                        className={`bg-white rounded-lg p-2.5 mb-2 cursor-pointer border transition-all ${
+                          expandedId === j.id ? 'border-[#534AB7]' : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="text-[12px] font-medium truncate">{j.title}</div>
+                        <div className="text-[11px] text-gray-400 truncate">{j.company}</div>
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="text-[10px] text-gray-300">{j.location}</span>
+                          {j.score != null && <ScoreBadge score={j.score} />}
+                        </div>
+                        {/* Indicators */}
+                        <div className="flex gap-1 mt-1.5 flex-wrap">
+                          {j.recommendation && (
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${
+                              j.recommendation === 'GO' ? 'bg-green-100 text-green-700' :
+                              j.recommendation === 'NO-GO' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'
+                            }`}>{j.recommendation}</span>
+                          )}
+                          {j.coverLetter && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#EEEDFE] text-[#534AB7]">CL ✓</span>}
+                          {j.cvTips && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#EEEDFE] text-[#534AB7]">CV ✓</span>}
+                          {j.nextFollowUp && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600">📅 {j.nextFollowUp}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
           </div>
-        </div>
-      )}
 
-      {selected && (() => {
-        const entry = pipeline.find(p => p.id === selected)
-        return entry ? (
-          <EntryDetail
-            entry={entry}
-            onUpdate={(field, value) => updateEntry(selected, field, value)}
-            onRemove={() => removeEntry(selected)}
-            onClose={() => setSelected(null)}
-            onNavigate={onNavigate}
-          />
-        ) : null
-      })()}
-    </div>
-  )
-}
-
-function KanbanColumn({ col, cards, selected, onSelect }) {
-  return (
-    <div className="bg-gray-50 rounded-xl p-3 min-h-[280px]">
-      <div className="flex justify-between items-center mb-2.5">
-        <span className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{col.label}</span>
-        <span className="text-[10px] bg-white rounded-full px-2 py-0.5 text-gray-500 border border-gray-200">{cards.length}</span>
-      </div>
-      {cards.length === 0 && (
-        <div className="text-[11px] text-gray-300 text-center py-4">—</div>
-      )}
-      {cards.map(c => (
-        <KanbanCard key={c.id} card={c} active={selected === c.id} onClick={() => onSelect(selected === c.id ? null : c.id)} />
-      ))}
-    </div>
-  )
-}
-
-function KanbanCard({ card, active, onClick }) {
-  return (
-    <div
-      onClick={onClick}
-      className={`bg-white rounded-lg p-2.5 mb-2 cursor-pointer border transition-all ${
-        active ? 'border-[#534AB7]' : 'border-gray-200 hover:border-gray-300'
-      }`}
-    >
-      <div className="text-[12px] font-medium text-gray-900 mb-0.5 truncate">{card.title}</div>
-      <div className="text-[11px] text-gray-400 truncate">{card.company}</div>
-      <div className="flex justify-between items-center mt-2">
-        <span className="text-[10px] text-gray-300">{card.location}</span>
-        {card.score != null && <ScoreBadge score={card.score} />}
-      </div>
-      {card.nextFollowUp && (
-        <div className="text-[10px] text-amber-600 mt-1.5">
-          <i className="ti ti-clock text-[10px]" /> {card.nextFollowUp}
-        </div>
+          {/* Detail panel for expanded job */}
+          {expandedId && (() => {
+            const job = jobs.find(j => j.id === expandedId)
+            if (!job) return null
+            return <JobDetail job={job} onUpdate={(patch) => onUpdateJob(job.id, patch)} onDelete={() => { onDeleteJob(job.id); setExpandedId(null) }} onNavigate={onNavigate} />
+          })()}
+        </>
       )}
     </div>
   )
 }
 
-function EntryDetail({ entry, onUpdate, onRemove, onClose, onNavigate }) {
+function JobDetail({ job, onUpdate, onDelete, onNavigate }) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
   return (
-    <Card highlight className="mt-4">
+    <Card highlight>
+      {/* Header */}
       <div className="flex justify-between items-start mb-4">
         <div>
-          <div className="text-[15px] font-medium">{entry.title}</div>
-          <div className="text-[12px] text-gray-500">{entry.company} · {entry.location}</div>
+          <div className="text-[15px] font-medium">{job.title}</div>
+          <div className="text-[12px] text-gray-500">{job.company} · {job.location}</div>
+          {job.score && (
+            <div className="flex items-center gap-2 mt-1.5">
+              <ScoreBadge score={job.score} />
+              <Tag variant={job.recommendation === 'GO' ? 'go' : job.recommendation === 'NO-GO' ? 'nogo' : 'investigate'}>
+                {job.recommendation}
+              </Tag>
+            </div>
+          )}
         </div>
-        <div className="flex gap-1.5">
-          {entry.url && (
-            <a href={entry.url} target="_blank" rel="noreferrer">
+        <div className="flex gap-1.5 flex-wrap justify-end">
+          {job.sourceUrl && (
+            <a href={job.sourceUrl} target="_blank" rel="noreferrer">
               <Button size="sm"><i className="ti ti-external-link" /></Button>
             </a>
           )}
-          <Button size="sm" variant="danger" onClick={onRemove}><i className="ti ti-trash" /></Button>
-          <Button size="sm" onClick={onClose}><i className="ti ti-x" /></Button>
+          <Button size="sm" onClick={() => onNavigate('qualify')}><i className="ti ti-bolt" />Score</Button>
+          <Button size="sm" onClick={() => onNavigate('adapter')}><i className="ti ti-file-text" />Docs</Button>
+          <Button size="sm" onClick={() => onNavigate('outreach')}><i className="ti ti-message" />Outreach</Button>
+          {!confirmDelete
+            ? <Button size="sm" variant="danger" onClick={() => setConfirmDelete(true)}><i className="ti ti-trash" /></Button>
+            : <Button size="sm" variant="danger" onClick={onDelete}>Confirm delete</Button>
+          }
         </div>
       </div>
 
+      <hr className="border-gray-100 my-3" />
+
+      {/* Pipeline fields */}
       <div className="grid grid-cols-2 gap-3 mb-3">
-        <Select
-          label="Status"
-          value={entry.status}
-          onChange={e => onUpdate('status', e.target.value)}
-        >
+        <Select label="Status" value={job.status} onChange={e => onUpdate({ status: e.target.value })}>
           {PIPELINE_COLUMNS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
         </Select>
-        <Input
-          label="Next follow-up"
-          value={entry.nextFollowUp}
-          onChange={e => onUpdate('nextFollowUp', e.target.value)}
-          placeholder="YYYY-MM-DD"
-        />
+        <Input label="Next follow-up" value={job.nextFollowUp || ''} onChange={e => onUpdate({ nextFollowUp: e.target.value })} placeholder="YYYY-MM-DD" />
       </div>
-
       <div className="mb-3">
-        <Input
-          label="Key contacts"
-          value={entry.contacts}
-          onChange={e => onUpdate('contacts', e.target.value)}
-          placeholder="Name, role, LinkedIn URL…"
-        />
+        <Input label="Key contacts" value={job.contacts || ''} onChange={e => onUpdate({ contacts: e.target.value })} placeholder="Name, role, LinkedIn…" />
       </div>
+      <Textarea label="Notes" value={job.notes || ''} onChange={e => onUpdate({ notes: e.target.value })} placeholder="Interview prep, context, next steps…" rows={3} />
 
-      <Textarea
-        label="Notes"
-        value={entry.notes}
-        onChange={e => onUpdate('notes', e.target.value)}
-        placeholder="Interview prep, context, next steps, follow-up notes…"
-        rows={4}
-      />
+      {/* Saved content previews */}
+      {(job.coverLetter || job.cvTips) && (
+        <>
+          <hr className="border-gray-100 my-4" />
+          <div className="text-[12px] text-gray-500 font-medium mb-3">Saved documents</div>
+          <div className="grid grid-cols-2 gap-3">
+            {job.coverLetter && (
+              <div className="bg-[#EEEDFE] rounded-lg p-3">
+                <div className="text-[11px] text-[#534AB7] font-medium mb-1">Cover Letter ✓</div>
+                <div className="text-[11px] text-[#7F77DD] line-clamp-3">{job.coverLetter.slice(0, 120)}…</div>
+                <button onClick={() => onNavigate('adapter')} className="text-[10px] text-[#534AB7] underline mt-1">View / edit</button>
+              </div>
+            )}
+            {job.cvTips && (
+              <div className="bg-[#EEEDFE] rounded-lg p-3">
+                <div className="text-[11px] text-[#534AB7] font-medium mb-1">CV Tips ✓</div>
+                <div className="text-[11px] text-[#7F77DD] line-clamp-3">{job.cvTips.slice(0, 120)}…</div>
+                <button onClick={() => onNavigate('adapter')} className="text-[10px] text-[#534AB7] underline mt-1">View / edit</button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
-      <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-        <Button size="sm" onClick={() => onNavigate('adapter')}>
-          <i className="ti ti-file-text" />Adapt docs for this role
-        </Button>
-        <Button size="sm" onClick={() => onNavigate('outreach')}>
-          <i className="ti ti-message" />Write outreach
-        </Button>
-      </div>
+      {/* Score detail */}
+      {job.scoreDimensions && (
+        <>
+          <hr className="border-gray-100 my-4" />
+          <div className="text-[12px] text-gray-500 font-medium mb-3">Qualification detail</div>
+          <div className="space-y-1">
+            {job.scoreDimensions.map(d => (
+              <div key={d.name} className="text-[12px] text-gray-500">
+                <span className="font-medium text-gray-700">{d.name} ({d.score}):</span> {d.note}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </Card>
   )
-}
-
-function EmptyState({ onNavigate }) {
-  return (
-    <div className="text-center py-16 text-gray-400">
-      <i className="ti ti-layout-kanban text-3xl block mb-3" />
-      <p className="text-[13px]">No jobs in pipeline yet.</p>
-      <p className="text-[13px] mb-4">Scan and qualify a posting to get started.</p>
-      <Button onClick={() => onNavigate('scanner')}>
-        <i className="ti ti-search" />Scan a job
-      </Button>
-    </div>
-  )
-}
-
-function today() {
-  return new Date().toISOString().split('T')[0]
 }
