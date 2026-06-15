@@ -150,8 +150,10 @@ export default function App() {
   }
 
   async function handleAddDocument(doc) {
-    const saved = await saveDocument(doc, userId)
-    setDocuments(prev => [saved || doc, ...prev.filter(d => d.id !== doc.id)])
+    // Update UI immediately with original doc (don't wait for Supabase response shape)
+    setDocuments(prev => [doc, ...prev.filter(d => d.id !== doc.id)])
+    // Persist in background
+    saveDocument(doc, userId).catch(err => console.error('Doc save error:', err))
   }
 
   async function handleDeleteDocument(docId) {
@@ -223,7 +225,7 @@ export default function App() {
             </div>
           </div>
           <div className="text-[11px] text-gray-400">{t('appSubtitle')}</div>
-          <div className="text-[10px] text-gray-300 mt-0.5 select-none">v1.0.8</div>
+          <div className="text-[10px] text-gray-300 mt-0.5 select-none">v1.0.10</div>
 
           {/* Sync status */}
           {isSupabaseEnabled() && (

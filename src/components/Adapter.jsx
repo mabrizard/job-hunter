@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { callClaude } from '../lib/api'
 import { cleanAIText } from '../lib/cleanText'
+import { exportDocx } from '../lib/exportDocx'
 import { buildEnrichedContext } from '../lib/buildContext'
 import { Card, Button, Alert, Tag, PageHeader, Select, Spinner, JobSwitcher } from './UI'
 
@@ -105,12 +106,28 @@ export default function Adapter({ t, selectedJob, jobs, profile, cvText, refCV, 
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [docxTemplate, setDocxTemplate] = useState('canada')
+  const [exporting, setExporting] = useState(false)
   const [selectedRefDocId, setSelectedRefDocId] = useState('')
 
   const isJunior = profile?.mode === 'junior'
   const TONES = isJunior ? JUNIOR_TONES : SENIOR_TONES
   const selectedRefDoc = documents?.find(d => d.id === selectedRefDocId)
   const effectiveTone = tone || TONES[0].value
+
+  async function handleExportDocx(type) {
+    const content = type === 'cl' ? selectedJob?.coverLetter : selectedJob?.cvTips
+    if (!content || !selectedJob) return
+    setExporting(true)
+    try {
+      const fname = `${type === 'cl' ? 'cover-letter' : 'cv'}-${selectedJob.company?.toLowerCase().replace(/\s+/g, '-') || 'job'}`
+      await exportDocx({ type, content, profile, template: docxTemplate, filename: fname })
+    } catch(e) {
+      alert(e.message)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   async function generate() {
     if (!selectedJob) return
@@ -310,12 +327,26 @@ ${isJunior ? 'Responsabilités' : 'Responsibilities'}: ${selectedJob.keyResponsi
                   </div>
                   {outputDate && <span className="text-[11px] text-gray-400">· {new Date(outputDate).toLocaleDateString()}</span>}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button size="sm" onClick={copy}><i className={`ti ${copied ? 'ti-check' : 'ti-copy'}`} />{copied ? t('copied') : t('copy')}</Button>
-                  {(tab === 'cl' || (isJunior && juniorCVMode === 'scratch')) && (
-                    <Button size="sm" onClick={() => exportToPDF(output, `${tab === 'cl' ? 'lettre' : 'cv'}-${selectedJob.company}`)}>
-                      <i className="ti ti-file-type-pdf" />PDF
-                    </Button>
+                  {(tab === 'cl' || (isJunior && juniorCVMode === 'scratch') || tab === 'cv') && (
+                    <>
+                      <select
+                        value={docxTemplate}
+                        onChange={e => setDocxTemplate(e.target.value)}
+                        className="text-[11px] px-2 py-1 border border-gray-200 rounded-lg outline-none focus:border-[#534AB7] bg-white"
+                      >
+                        <option value="canada">Canada (ATS)</option>
+                        <option value="emea">EMEA (header violet)</option>
+                      </select>
+                      <Button size="sm" onClick={() => handleExportDocx(tab)} disabled={exporting}>
+                        <i className={`ti ${exporting ? 'ti-loader' : 'ti-file-word'}`} />
+                        {exporting ? '…' : 'DOCX'}
+                      </Button>
+                      <Button size="sm" onClick={() => exportToPDF(output, `${tab === 'cl' ? 'lettre' : 'cv'}-${selectedJob.company}`)}>
+                        <i className="ti ti-file-type-pdf" />PDF
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>

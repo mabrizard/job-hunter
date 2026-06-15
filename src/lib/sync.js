@@ -148,7 +148,8 @@ export async function loadDocuments(userId) {
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
   if (error) throw error
-  return data || []
+  // Normalize — strip Supabase-only fields, keep app fields
+  return (data || []).map(({ user_id, updated_at, ...doc }) => doc)
 }
 
 export async function saveDocument(doc, userId) {
@@ -159,13 +160,11 @@ export async function saveDocument(doc, userId) {
   localStorage.setItem('ph_documents', JSON.stringify(docs))
 
   if (!supabase || !userId) return doc
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('documents')
     .upsert({ ...doc, user_id: userId, updated_at: new Date().toISOString() })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  if (error) console.error('Supabase doc upsert error:', error)
+  return doc
 }
 
 export async function deleteDocument(docId, userId) {
