@@ -133,6 +133,7 @@ export const translations = {
   navCV:          { fr: 'Mon CV',                    en: 'My CV' },
   navRefDocs:     { fr: 'Docs de référence',          en: 'Reference Docs' },
   navDocLibrary:  { fr: 'Bibliothèque CV',              en: 'CV Library' },
+  navProfilePlus: { fr: 'Profil enrichi',              en: 'Enriched profile' },
 
   // API Key
   apiKeyTitle:    { fr: 'Clé API',                  en: 'API Key' },

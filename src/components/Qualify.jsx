@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { callClaude, parseJSON } from '../lib/api'
 import { convertToCAD } from '../lib/fx'
 import { Card, Button, Alert, Tag, ScoreBadge, PageHeader, DimBar, Spinner, JobSwitcher, FXChip, ContactChip } from './UI'
+import { buildEnrichedContext } from '../lib/buildContext'
 
-function buildSeniorSystem(profile) {
+function buildSeniorSystem(profile, lang) {
+  const enriched = buildEnrichedContext(profile, { lang })
   return `You are a senior career coach specializing in pre-sales leadership roles in enterprise SaaS.
 Score this job posting against the candidate's target profile.
 
@@ -15,6 +17,9 @@ CANDIDATE PROFILE (RAG context):
 - Key strengths: ${profile.strengths}
 - Dealbreakers: ${profile.dealbreakers}
 - CV summary: ${profile.cvSummary}
+
+ENRICHED CONTEXT:
+${enriched}
 
 DEPRIORIZATION RULE: If 2+ significant mismatches → total score below 40.
 

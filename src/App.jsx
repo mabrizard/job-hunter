@@ -16,6 +16,7 @@ import ATSScore from './components/ATSScore'
 import CVUpload from './components/CVUpload'
 import RefDocs from './components/RefDocs'
 import DocLibrary from './components/DocLibrary'
+import ProfileEnriched from './components/ProfileEnriched'
 import AuthModal from './components/AuthModal'
 
 export default function App() {
@@ -182,6 +183,7 @@ export default function App() {
     { id: 'doclibrary',label: t('navDocLibrary'),icon: 'ti-library',       section: 'settings' },
     { id: 'refdocs',  label: t('navRefDocs'),  icon: 'ti-files',         section: 'settings' },
     { id: 'profile',  label: t('navProfile'),  icon: 'ti-user',          section: 'settings' },
+    { id: 'profileplus', label: t('navProfilePlus'), icon: 'ti-user-star', section: 'settings' },
     { id: 'apikey',   label: t('navApiKey'),   icon: 'ti-key',           section: 'settings' },
   ]
 
@@ -221,6 +223,7 @@ export default function App() {
             </div>
           </div>
           <div className="text-[11px] text-gray-400">{t('appSubtitle')}</div>
+          <div className="text-[10px] text-gray-300 mt-0.5 select-none">v1.0.8</div>
 
           {/* Sync status */}
           {isSupabaseEnabled() && (
@@ -300,6 +303,7 @@ export default function App() {
           {page === 'refdocs'  && <RefDocs lang={lang} refCV={refCV} refCoverLetter={refCoverLetter} onRefCVUpdate={handleRefCVUpdate} onRefCLUpdate={handleRefCLUpdate} />}
           {page === 'doclibrary' && <DocLibrary lang={lang} documents={documents} onAdd={handleAddDocument} onDelete={handleDeleteDocument} onNavigate={navigate} />}
           {page === 'profile'  && <ProfilePage t={t} profile={profile} onSave={handleProfileSave} />}
+          {page === 'profileplus' && <ProfileEnriched lang={lang} profile={profile} onSave={handleProfileSave} />}
           {page === 'apikey'   && <ApiKeyPage t={t} apiKey={apiKey} onSave={handleApiKeySave} />}
         </div>
       </main>

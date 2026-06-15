@@ -32,6 +32,20 @@ export const DEFAULT_PROFILE = {
   phone: '',
   email: '',
   linkedin: '',
+  // Enriched profile
+  experiences: [],        // [{id, employer, role, period, description, metrics, tags[]}]
+  keyMetrics: [],         // [{id, label, value}] — user-defined, any profession
+  repositioningAngles: [],// [{id, label, description}] — how I pitch myself per role type
+  immigration: {
+    residenceCountry: 'France',
+    workAuthorized: true,
+    needsSponsorshipCurrently: false,
+    targetCountries: '',
+    needsSponsorshipTarget: '',
+    processUnderway: '',
+    availabilityTimeline: '',
+    howToPresent: 'proactive', // 'proactive' | 'on_request' | 'interview_only'
+  },
   cvSummary: `Senior pre-sales leader with 10+ years in enterprise SaaS. Led teams of 5–12 SCs across EMEA and North America. Deep expertise in regulated industries (finance, healthcare, public sector). Fluent French/English. Consistent track record closing €5M+ deals with MEDDPICC. Player/coach: still demo, still technical, while building and coaching the team. AI-native: uses LLMs in daily workflow.`,
 }
 

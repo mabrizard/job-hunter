@@ -1,16 +1,21 @@
 import React, { useState } from 'react'
 import { callClaude } from '../lib/api'
 import { cleanAIText } from '../lib/cleanText'
+import { buildEnrichedContext } from '../lib/buildContext'
 import { Card, Button, Alert, Tag, PageHeader, Select, Spinner, JobSwitcher } from './UI'
 
 // ─── SENIOR PROMPTS ───────────────────────────────────────────────────────────
 
-function buildSeniorCLSystem(profile, tone, cvText, refCoverLetter) {
+function buildSeniorCLSystem(profile, tone, cvText, refCoverLetter, lang) {
+  const enriched = buildEnrichedContext(profile, { lang })
   return `You are an expert cover letter writer for senior pre-sales leaders. Write in a ${tone} style.
 CANDIDATE: Name: ${profile.name} | ${[profile.phone, profile.email, profile.linkedin].filter(Boolean).join(' | ')}
 Strengths: ${profile.strengths} | CV: ${profile.cvSummary}
 ${cvText ? `Full CV: ${cvText.slice(0, 2000)}` : ''}
 ${refCoverLetter ? `Reference style: ${refCoverLetter.slice(0, 1500)}` : ''}
+
+ENRICHED CONTEXT (experiences, metrics, immigration):
+${enriched}
 RULES: NO generic phrases. NO markdown (no **, no ##). 3 paragraphs: hook, evidence (3 differentiators), close. Max 280 words. Match job language (FR/EN). Peer tone. Start with name + contact header.`
 }
 
@@ -115,7 +120,7 @@ export default function Adapter({ t, selectedJob, jobs, profile, cvText, refCV, 
       if (tab === 'cl') {
         const sys = isJunior
           ? buildJuniorCLSystem(profile, effectiveTone)
-          : buildSeniorCLSystem(profile, effectiveTone, cvText, refCoverLetter || selectedRefDoc?.content)
+          : buildSeniorCLSystem(profile, effectiveTone, cvText, refCoverLetter || selectedRefDoc?.content, t('lang'))
         const userMsg = `${isJunior ? 'Rédige une lettre de motivation pour' : 'Write a cover letter for'}: ${selectedJob.title} ${isJunior ? 'chez' : 'at'} ${selectedJob.company} (${selectedJob.location})
 ${isJunior ? 'Responsabilités' : 'Responsibilities'}: ${selectedJob.keyResponsibilities}
 ${isJunior ? 'Requis' : 'Required'}: ${(selectedJob.requiredStack||[]).join(', ')}`
