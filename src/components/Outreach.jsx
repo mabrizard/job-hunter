@@ -3,12 +3,19 @@ import { callClaude } from '../lib/api'
 import { Card, Button, Alert, Input, Textarea, Select, PageHeader, Spinner, JobSwitcher } from './UI'
 
 function buildOutreachSystem(profile) {
+  const isJunior = profile?.mode === 'junior'
+  if (isJunior) {
+    return `Tu rédiges des messages LinkedIn pour un candidat junior en recherche d'emploi.
+EXPÉDITEUR : ${profile.name} | Formation : ${profile.studyLevel} en ${profile.studyDomain} | Forces : ${profile.strengths}
+RÈGLES : Max 3 phrases. PAS de flatterie. PAS de formules génériques. Objectif : demander un conseil, pas directement un emploi. Ton naturel. 2 variantes (Option A / Option B). Langue selon la sélection.`
+  }
   return `You are writing LinkedIn messages for a senior pre-sales leader.
 SENDER: ${profile.name} | Strengths: ${profile.strengths}
 RULES: Max 3 sentences. NO flattery. NO templates. Peer tone. 2 variants (Option A / Option B). Mirror the specified language.`
 }
 
 export default function Outreach({ t, selectedJob, jobs, profile, onUpdateJob, onSelectJob, onNavigate }) {
+  const isJunior = profile?.mode === 'junior'
   const [contactName, setContactName] = useState('')
   const [context, setContext] = useState('')
   const [lang, setLang] = useState('English')

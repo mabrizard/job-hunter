@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { DEFAULT_PROFILE, createJob, PIPELINE_COLUMNS } from './lib/state'
+import { DEFAULT_PROFILE, DEFAULT_JUNIOR_PROFILE, createJob, PIPELINE_COLUMNS } from './lib/state'
 import { useLanguage } from './lib/useLanguage'
 import { isSupabaseEnabled } from './lib/supabase'
 import { onAuthChange, getSession, signOut } from './lib/sync'

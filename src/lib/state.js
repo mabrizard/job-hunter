@@ -1,3 +1,21 @@
+export const DEFAULT_JUNIOR_PROFILE = {
+  mode: 'junior',
+  name: '',
+  phone: '',
+  email: '',
+  linkedin: '',
+  // Junior specific
+  studyLevel: '', // Bac+2, Bac+3, Bac+5, Autodidacte...
+  studyDomain: '', // Informatique, Commerce, Marketing...
+  contractTypes: '', // Stage, Alternance, CDI Junior, CDD
+  sectors: '', // Tech, SaaS, Conseil, Finance...
+  geos: '',
+  technicalSkills: '', // Langages, outils, certifs
+  extraExperience: '', // Stages, projets perso, bénévolat, associations
+  strengths: '', // Ce qui me différencie
+  cvSummary: '', // Résumé libre
+}
+
 // Default search profile
 export const DEFAULT_PROFILE = {
   name: 'Marc-Alexandre',
@@ -7,6 +25,10 @@ export const DEFAULT_PROFILE = {
   geos: 'Québec, Alberta, Toronto, Ottawa, Montréal, Calgary (priority). EMEA / France (fallback). UK excluded.',
   strengths: 'Player/coach leadership, MEDDPICC, C-level relationships, regulated sectors (finance, healthcare, public sector), bilingual FR/EN, AI-native',
   dealbreakers: 'UK-only roles, pure IC non-management, below salary floor, unrelated domain (HR tech, pure e-commerce), no management scope',
+  phone: '',
+  email: '',
+  linkedin: '',
+  mode: 'senior',
   phone: '',
   email: '',
   linkedin: '',
