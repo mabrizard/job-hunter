@@ -225,7 +225,7 @@ export default function App() {
             </div>
           </div>
           <div className="text-[11px] text-gray-400">{t('appSubtitle')}</div>
-          <div className="text-[10px] text-gray-300 mt-0.5 select-none">v1.0.10</div>
+          <div className="text-[10px] text-gray-300 mt-0.5 select-none">v1.0.11</div>
 
           {/* Sync status */}
           {isSupabaseEnabled() && (

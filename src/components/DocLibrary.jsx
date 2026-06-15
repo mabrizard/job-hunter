@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { extractTextFromPDF } from '../lib/pdfReader'
+import { exportDocx } from '../lib/exportDocx'
 import { Card, Button, Alert, Input, PageHeader, Spinner } from './UI'
 
 const PRESET_TAGS = ['Pre-Sales', 'Delivery', 'Forward Deployed', 'Solutions Consulting', 'FR', 'EN', 'Canada', 'EMEA', 'Template', 'Cover Letter']
@@ -132,6 +133,85 @@ function AddDocForm({ lang, onAdd, onCancel }) {
   )
 }
 
+
+// ── Doc Preview + Export ──────────────────────────────────────────────────────
+
+function DocPreview({ doc, lang, onClose }) {
+  const [exporting, setExporting] = useState(false)
+  const [showFull, setShowFull] = useState(false)
+
+  function downloadTxt() {
+    const blob = new Blob([doc.content], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${doc.name.replace(/\s+/g, '-')}.txt`
+    document.body.appendChild(a)
+    a.click()
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url) }, 1000)
+  }
+
+  async function downloadDocx(template) {
+    setExporting(true)
+    try {
+      await exportDocx({
+        type: 'cv',
+        content: doc.content,
+        profile: {},
+        template,
+        filename: doc.name.replace(/\s+/g, '-'),
+      })
+    } catch(e) {
+      alert(e.message)
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const preview = showFull ? doc.content : doc.content?.slice(0, 1200)
+  const isTruncated = !showFull && doc.content?.length > 1200
+
+  return (
+    <div className="mt-3 pt-3 border-t border-gray-100">
+      {/* Export bar */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <span className="text-[11px] text-gray-400 mr-1">
+          {lang === 'fr' ? 'Exporter :' : 'Export:'}
+        </span>
+        <button onClick={downloadTxt}
+          className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg border border-gray-200 bg-white text-gray-600 hover:border-gray-300 transition-all">
+          <i className="ti ti-file-text text-sm" />.txt
+        </button>
+        <button onClick={() => downloadDocx('canada')} disabled={exporting}
+          className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg border border-gray-200 bg-white text-gray-600 hover:border-gray-300 transition-all disabled:opacity-50">
+          <i className="ti ti-file-word text-sm text-blue-600" />DOCX Canada
+        </button>
+        <button onClick={() => downloadDocx('emea')} disabled={exporting}
+          className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg border border-gray-200 bg-white text-gray-600 hover:border-gray-300 transition-all disabled:opacity-50">
+          <i className="ti ti-file-word text-sm text-[#534AB7]" />DOCX EMEA
+        </button>
+        {exporting && <span className="text-[11px] text-gray-400">{lang === 'fr' ? 'Génération…' : 'Generating…'}</span>}
+      </div>
+
+      {/* Preview */}
+      <div className="bg-gray-50 rounded-lg p-3">
+        <div className="text-[12px] text-gray-600 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
+          {preview}
+          {isTruncated && <span className="text-gray-400">…</span>}
+        </div>
+        {doc.content?.length > 1200 && (
+          <button onClick={() => setShowFull(!showFull)}
+            className="text-[11px] text-[#534AB7] underline mt-2 block">
+            {showFull
+              ? (lang === 'fr' ? '↑ Réduire' : '↑ Collapse')
+              : (lang === 'fr' ? `↓ Voir tout (${doc.content.length.toLocaleString()} car.)` : `↓ Show all (${doc.content.length.toLocaleString()} chars)`)}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function DocLibrary({ lang, documents, onAdd, onDelete, onNavigate }) {
   const [showAdd, setShowAdd] = useState(false)
   const [filterTag, setFilterTag] = useState('')
@@ -209,11 +289,7 @@ export default function DocLibrary({ lang, documents, onAdd, onDelete, onNavigat
                 </Button>
               </div>
               {expandedId === doc.id && (
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <div className="text-[12px] text-gray-500 bg-gray-50 rounded-lg p-3 max-h-48 overflow-y-auto whitespace-pre-wrap">
-                    {doc.content?.slice(0, 600)}…
-                  </div>
-                </div>
+                <DocPreview doc={doc} lang={lang} onClose={() => setExpandedId(null)} />
               )}
             </Card>
           ))}
