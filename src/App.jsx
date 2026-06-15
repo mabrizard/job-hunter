@@ -3,7 +3,7 @@ import { DEFAULT_PROFILE, createJob, PIPELINE_COLUMNS } from './lib/state'
 import { useLanguage } from './lib/useLanguage'
 import { isSupabaseEnabled } from './lib/supabase'
 import { onAuthChange, getSession, signOut } from './lib/sync'
-import { loadJobs, saveJob, deleteJob, saveAllJobs, loadProfile, saveProfile, migrateLocalStorageToSupabase } from './lib/sync'
+import { loadJobs, saveJob, deleteJob, saveAllJobs, loadProfile, saveProfile, migrateLocalStorageToSupabase, loadDocuments, saveDocument, deleteDocument } from './lib/sync'
 import Scanner from './components/Scanner'
 import Qualify from './components/Qualify'
 import Pipeline from './components/Pipeline'
@@ -15,6 +15,7 @@ import Timeline from './components/Timeline'
 import ATSScore from './components/ATSScore'
 import CVUpload from './components/CVUpload'
 import RefDocs from './components/RefDocs'
+import DocLibrary from './components/DocLibrary'
 import AuthModal from './components/AuthModal'
 
 export default function App() {
@@ -34,6 +35,7 @@ export default function App() {
   const [refCV, setRefCV] = useState(() => localStorage.getItem('ph_refcv') || null)
   const [refCoverLetter, setRefCoverLetter] = useState(() => localStorage.getItem('ph_refcl') || null)
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('ph_apikey') || '')
+  const [documents, setDocuments] = useState([])
   const [loaded, setLoaded] = useState(false)
 
   const userId = session?.user?.id || null
@@ -43,12 +45,14 @@ export default function App() {
     async function load(uid) {
       setSyncing(true)
       try {
-        const [loadedJobs, loadedProfile] = await Promise.all([
+        const [loadedJobs, loadedProfile, loadedDocs] = await Promise.all([
           loadJobs(uid),
           loadProfile(uid, DEFAULT_PROFILE),
+          loadDocuments(uid),
         ])
         setJobs(loadedJobs)
         setProfile(loadedProfile)
+        setDocuments(loadedDocs)
         // Migrate localStorage on first Supabase login
         if (uid && localStorage.getItem('ph_migrated') !== 'true') {
           await migrateLocalStorageToSupabase(uid)
@@ -144,6 +148,16 @@ export default function App() {
     else localStorage.removeItem('ph_refcv')
   }
 
+  async function handleAddDocument(doc) {
+    const saved = await saveDocument(doc, userId)
+    setDocuments(prev => [saved || doc, ...prev.filter(d => d.id !== doc.id)])
+  }
+
+  async function handleDeleteDocument(docId) {
+    setDocuments(prev => prev.filter(d => d.id !== docId))
+    await deleteDocument(docId, userId)
+  }
+
   function handleRefCLUpdate(text) {
     setRefCoverLetter(text)
     if (text) localStorage.setItem('ph_refcl', text)
@@ -165,13 +179,14 @@ export default function App() {
     { id: 'ats',      label: t('navATS'),      icon: 'ti-target',        section: 'workflow' },
     { id: 'timeline', label: t('navTimeline'), icon: 'ti-chart-bar',     section: 'workflow' },
     { id: 'cv',       label: t('navCV'),       icon: 'ti-id',            section: 'settings' },
+    { id: 'doclibrary',label: t('navDocLibrary'),icon: 'ti-library',       section: 'settings' },
     { id: 'refdocs',  label: t('navRefDocs'),  icon: 'ti-files',         section: 'settings' },
     { id: 'profile',  label: t('navProfile'),  icon: 'ti-user',          section: 'settings' },
     { id: 'apikey',   label: t('navApiKey'),   icon: 'ti-key',           section: 'settings' },
   ]
 
   const sharedProps = {
-    t, lang, selectedJob, jobs, profile, cvText, refCV, refCoverLetter,
+    t, lang, selectedJob, jobs, profile, cvText, refCV, refCoverLetter, documents,
     onUpdateJob: updateJob, onSelectJob: handleSelectJob, onNavigate: navigate
   }
 
@@ -283,6 +298,7 @@ export default function App() {
           {page === 'timeline' && <Timeline t={t} lang={lang} jobs={jobs} />}
           {page === 'cv'       && <CVUpload t={t} lang={lang} cvText={cvText} onCVUpdate={handleCVUpdate} />}
           {page === 'refdocs'  && <RefDocs lang={lang} refCV={refCV} refCoverLetter={refCoverLetter} onRefCVUpdate={handleRefCVUpdate} onRefCLUpdate={handleRefCLUpdate} />}
+          {page === 'doclibrary' && <DocLibrary lang={lang} documents={documents} onAdd={handleAddDocument} onDelete={handleDeleteDocument} onNavigate={navigate} />}
           {page === 'profile'  && <ProfilePage t={t} profile={profile} onSave={handleProfileSave} />}
           {page === 'apikey'   && <ApiKeyPage t={t} apiKey={apiKey} onSave={handleApiKeySave} />}
         </div>

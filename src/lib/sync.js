@@ -135,3 +135,42 @@ export async function migrateLocalStorageToSupabase(userId) {
 
   localStorage.setItem('ph_migrated', 'true')
 }
+
+// ─── DOCUMENTS ────────────────────────────────────────────────────────────────
+
+export async function loadDocuments(userId) {
+  if (!supabase || !userId) {
+    return JSON.parse(localStorage.getItem('ph_documents') || '[]')
+  }
+  const { data, error } = await supabase
+    .from('documents')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data || []
+}
+
+export async function saveDocument(doc, userId) {
+  const docs = JSON.parse(localStorage.getItem('ph_documents') || '[]')
+  const idx = docs.findIndex(d => d.id === doc.id)
+  if (idx >= 0) docs[idx] = doc
+  else docs.unshift(doc)
+  localStorage.setItem('ph_documents', JSON.stringify(docs))
+
+  if (!supabase || !userId) return doc
+  const { data, error } = await supabase
+    .from('documents')
+    .upsert({ ...doc, user_id: userId, updated_at: new Date().toISOString() })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteDocument(docId, userId) {
+  const docs = JSON.parse(localStorage.getItem('ph_documents') || '[]')
+  localStorage.setItem('ph_documents', JSON.stringify(docs.filter(d => d.id !== docId)))
+  if (!supabase || !userId) return
+  await supabase.from('documents').delete().eq('id', docId).eq('user_id', userId)
+}

@@ -132,6 +132,7 @@ export const translations = {
   navATS:         { fr: 'ATS & Probabilité',        en: 'ATS & Probability' },
   navCV:          { fr: 'Mon CV',                    en: 'My CV' },
   navRefDocs:     { fr: 'Docs de référence',          en: 'Reference Docs' },
+  navDocLibrary:  { fr: 'Bibliothèque CV',              en: 'CV Library' },
 
   // API Key
   apiKeyTitle:    { fr: 'Clé API',                  en: 'API Key' },
