@@ -49,6 +49,18 @@ export async function callClaude(systemPrompt, userMessage, maxTokens = 1000) {
 }
 
 export function parseJSON(raw) {
-  const clean = raw.replace(/```json\n?|```\n?/g, '').trim()
-  return JSON.parse(clean)
+  let clean = raw.replace(/```json\n?|```\n?/g, '').trim()
+  try {
+    return JSON.parse(clean)
+  } catch (e) {
+    const lastBrace = clean.lastIndexOf('}')
+    const lastBracket = clean.lastIndexOf(']')
+    const cutPoint = Math.max(lastBrace, lastBracket)
+    if (cutPoint > 0) {
+      try {
+        return JSON.parse(clean.slice(0, cutPoint + 1))
+      } catch {}
+    }
+    throw new Error('Could not parse AI response as JSON — try again')
+  }
 }
