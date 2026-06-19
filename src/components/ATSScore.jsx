@@ -97,7 +97,7 @@ Required: ${(selectedJob.requiredStack||[]).join(', ')}
 Responsibilities: ${selectedJob.keyResponsibilities}
 Compensation: ${selectedJob.compensation || 'Not specified'}
 Posted: ${selectedJob.postedDate || 'Unknown'}`
-      const raw = await callClaude(sys, userMsg, 1500)
+      const raw = await callClaude(sys, userMsg, 2500)
       const result = parseJSON(raw)
       onUpdateJob(selectedJob.id, {
         atsScore: result.atsScore,
